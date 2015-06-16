@@ -57,9 +57,10 @@ angular.module('recorder').directive('recorderBuilder', ['recorderUtils', functi
 
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
-                if(window.AudioContext) {
-                    audioContext = new AudioContext();
+                if(window.AudioContext && !window.audioContextInstance) {
+                    window.audioContextInstance = new AudioContext();
                 }
+                audioContext = window.audioContextInstance;
 
                 //HTML5 recorder
                 var gotStream = function(stream) {
@@ -126,6 +127,8 @@ angular.module('recorder').directive('recorderBuilder', ['recorderUtils', functi
 
                             if(scriptIndex != -1) {
                                 return script.src.slice(0, scriptIndex);
+                            } else {
+                                return '/';
                             }
                         }
                         else {
@@ -133,12 +136,11 @@ angular.module('recorder').directive('recorderBuilder', ['recorderUtils', functi
 
                             if(scriptIndex != -1) {
                                 return script.getAttribute('src', -1).slice(0, scriptIndex);
+                            } else {
+                              return '/';
                             }
-
                         }
-
                     }
-
                 }());
 
                 swfobject.embedSWF( scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashvars, params, attrs);
