@@ -36,128 +36,18 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    realAudioInput = null,
                    inputPoint = null,
                    audioRecorder = null,
-                   audioContext = null;
-
-               scope.recordPermissionControl.recordHandler = null;
-               scope.recordPermissionControl.isHtml5 = null;
-               scope.recordPermissionControl.isReady = false;
-
-               navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-
-               // Checks user media is supported in browser
-               if(navigator.getUserMedia) {
-
-                   scope.recordPermissionControl.isHtml5 = true;
-
-
-                   window.AudioContext = window.AudioContext || window.webkitAudioContext;
-
-                   if(window.AudioContext && !window.audioContextInstance) {
-                       window.audioContextInstance = new AudioContext();
-                   }
-                   audioContext = window.audioContextInstance;
-
-                   //HTML5 recorder
-                   var gotStream = function(stream) {
-                       inputPoint = audioContext.createGain();
-
-                       // Create an AudioNode from the stream.
-                       realAudioInput = audioContext.createMediaStreamSource(stream);
-                       audioInput = realAudioInput;
-                       audioInput.connect(inputPoint);
-
-                       analyserNode = audioContext.createAnalyser();
-                       analyserNode.fftSize = 2048;
-                       inputPoint.connect( analyserNode );
-
-                       audioRecorder = new Recorder( realAudioInput );
-
-                       zeroGain = audioContext.createGain();
-                       zeroGain.gain.value = 0.0;
-                       inputPoint.connect( zeroGain );
-                       zeroGain.connect( audioContext.destination );
-
-                       scope.recordPermissionControl.isReady = true;
-
-                       scope.recordPermissionControl.recordHandler = audioRecorder;
-
-                       if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
-                           scope.recordPermissionControl.onPermissionAllowed();
-                       }
-
-                   };
-
-                   var failStream = function (data) {
-                       console.log(data);
-                       if(angular.isDefined(scope.recordPermissionControl.onPermissionDenied)) {
-                           scope.recordPermissionControl.onPermissionDenied();
-                       }
-                   };
-
-                   navigator.getUserMedia({
-                       "audio": {
-                           "mandatory": {
-                               "googEchoCancellation": "false",
-                               "googAutoGainControl": "false",
-                               "googNoiseSuppression": "false",
-                               "googHighpassFilter": "false"
-                           },
-                           "optional": []
-                       }
-                   }, gotStream, failStream);
-
-               }
-               else {
-                   //Flash recorder
-                   scope.recordPermissionControl.isHtml5 = false;
-
-                   //Embedding flash object
-                   var params = {};
-
-                   var attrs = {
-                       'id': 'recorder-app',
-                       'name': 'recorder-app'
-                   };
-
-                   var flashvars = {
-                       'save_text': ''
-                   };
-
-                   var scriptPath = (function(scripts) {
-                       var scripts = document.getElementsByTagName('script');
-
-                       for(var i = 0; i < scripts.length; i++) {
-                           var script = scripts[i];
-
-                           if (script.getAttribute.length !== undefined) {
-                               var scriptIndex = script.src.indexOf('record-builder.js');
-
-                               if(scriptIndex != -1) {
-                                   return script.src.slice(0, scriptIndex);
-                               }
-                           }
-                           else {
-                               var scriptIndex = script.getAttribute('src', -1).indexOf('record-builder.js');
-
-                               if(scriptIndex != -1) {
-                                   return script.getAttribute('src', -1).slice(0, scriptIndex);
-                               }
-                           }
-                       }
-                   }());
-
-                   swfobject.embedSWF( scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashvars, params, attrs);
-
-                   window.configureMicrophone = function () {
+                   audioContext = null,
+                   flashconfigureMic = function () {
                        if (!FWRecorder.isReady) {
                            return;
                        }
                        FWRecorder.configure(44, 100, 0, 2000);
                        FWRecorder.setUseEchoSuppression(false);
                        FWRecorder.setLoopBack(false);
-                   };
+                   },
 
-                   window.fwr_event_handler = function(eventName) {
+
+                   flashExternalEvents = function(eventName) {
                        //Actions based on user interaction with flash
                        var name;
                        switch (arguments[0]) {
@@ -167,9 +57,6 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                FWRecorder.connect('recorder-app', 0);
                                FWRecorder.recorderOriginalWidth = 1;
                                FWRecorder.recorderOriginalHeight = 1;
-
-                               FWRecorder.showPermissionWindow({permanent: true});
-
                                scope.recordPermissionControl.isReady = true;
                                scope.recordPermissionControl.recordHandler = FWRecorder;
                                break;
@@ -182,14 +69,12 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                break;
 
                            case "microphone_connected":
-                               FWRecorder.defaultSize();
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
                                    scope.recordPermissionControl.onPermissionAllowed();
                                }
                                break;
 
                            case "microphone_not_connected":
-                               FWRecorder.defaultSize();
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionDenied)) {
                                    scope.recordPermissionControl.onPermissionDenied();
                                }
@@ -266,8 +151,111 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                var bytesTotal = arguments[3];
                                break;
                        }
-                   }
+                     
+                   };
+                   
+                   
 
+               scope.recordPermissionControl.recordHandler = null;
+               scope.recordPermissionControl.isHtml5 = null;
+               scope.recordPermissionControl.isReady = false;
+
+               navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+               // Checks user media is supported in browser
+               if(navigator.getUserMedia) {
+
+                   scope.recordPermissionControl.isHtml5 = true;
+
+                   window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+                   if(window.AudioContext && !window.audioContextInstance) {
+                       window.audioContextInstance = new AudioContext();
+                   }
+                   audioContext = window.audioContextInstance;
+
+                   //HTML5 recorder
+                   var gotStream = function(stream) {
+                       inputPoint = audioContext.createGain();
+
+                       // Create an AudioNode from the stream.
+                       realAudioInput = audioContext.createMediaStreamSource(stream);
+                       audioInput = realAudioInput;
+                       audioInput.connect(inputPoint);
+
+                       analyserNode = audioContext.createAnalyser();
+                       analyserNode.fftSize = 2048;
+                       inputPoint.connect( analyserNode );
+
+                       audioRecorder = new Recorder( realAudioInput );
+
+                       zeroGain = audioContext.createGain();
+                       zeroGain.gain.value = 0.0;
+                       inputPoint.connect( zeroGain );
+                       zeroGain.connect( audioContext.destination );
+
+                       scope.recordPermissionControl.isReady = true;
+
+                       scope.recordPermissionControl.recordHandler = audioRecorder;
+
+                       if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
+                           scope.recordPermissionControl.onPermissionAllowed();
+                       }
+
+                   };
+
+                   var failStream = function (data) {
+                       console.log(data);
+                       if(angular.isDefined(scope.recordPermissionControl.onPermissionDenied)) {
+                           scope.recordPermissionControl.onPermissionDenied();
+                       }
+                   };
+
+               }
+               else {
+                   //Flash recorder external events
+                   scope.recordPermissionControl.isHtml5 = false;
+
+                  //Embedding flash object
+                   var params = {};
+
+                   var attrs = {
+                       'id': 'recorder-app',
+                       'name': 'recorder-app'
+                   };
+
+                   var flashvars = {
+                       'save_text': ''
+                   };
+
+                   var scriptPath = (function(scripts) {
+                       var scripts = document.getElementsByTagName('script');
+
+                       for(var i = 0; i < scripts.length; i++) {
+                           var script = scripts[i];
+
+                           if (script.getAttribute.length !== undefined) {
+                               var scriptIndex = script.src.indexOf('record-builder.js');
+
+                               if(scriptIndex != -1) {
+                                   return script.src.slice(0, scriptIndex);
+                               }
+                           }
+                           else {
+                               var scriptIndex = script.getAttribute('src', -1).indexOf('record-builder.js');
+
+                               if(scriptIndex != -1) {
+                                   return script.getAttribute('src', -1).slice(0, scriptIndex);
+                               }
+                           }
+                       }
+                   }());
+
+                   swfobject.embedSWF( scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashvars, params, attrs);
+                   //Flash external events initialised when user launches activity
+                   window.fwr_event_handler = flashExternalEvents;
+                   window.configureMicrophone = flashconfigureMic;
+                   
                }
 
                scope.recordPermissionControl.showPermission = function () {
@@ -286,6 +274,9 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    }
                    else {
                        FWRecorder.showPermissionWindow({permanent: true});
+                       //Flash external events called for returning users or using cog icon
+                       window.fwr_event_handler = flashExternalEvents;
+                       window.configureMicrophone = flashconfigureMic;
                    }
 
                };
@@ -414,7 +405,7 @@ angular.module('recorder').directive('recorderBuilder', [
                     }
                     else {
                         recordHandler.playBack(id);
-
+                        
                         window.fwr_event_handler = function(eventName) {
 
                             var name;
@@ -431,8 +422,7 @@ angular.module('recorder').directive('recorderBuilder', [
                 };
 
                 if(angular.isDefined(scope.recordControl)) {
-                    //scope.recordControl = scope.recordControl;
-
+                  
                     scope.recordControl.startRecord = function (id) {
                         scope.startRecord(id);
                     };
