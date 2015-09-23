@@ -302,9 +302,19 @@ angular.module('recorder').directive('recorderBuilder', [
             link: function(scope, element, attributes) {
 
                 var currentId = null;
+                var cordovaRecorder = null;
 
                 //Gets id of the element in the DOM
                 var elementId = element.attr("id");
+                
+                var fromApp = null;
+                //to detect app
+                if(window.cordova){
+                    fromApp = true;
+                }
+                else{
+                    fromApp = false;
+                }
 
                 //Sets ID for the element if ID doesn't exists
                 if(!elementId) {
@@ -319,18 +329,23 @@ angular.module('recorder').directive('recorderBuilder', [
                     return scope.recordPermissionControl.recordHandler;
                 };
 
-
                 scope.startRecord = function (id) {
                     var recordHandler = scope.getRecordHandler();
 
                     //Record iniation based on browser type
-                    if(scope.isHtml5) {
+                    if(scope.isHtml5 && !fromApp) {
                         //HTML5 recording
                         if (!recordHandler) {
                             return;
                         }
                         recordHandler.clear();
                         recordHandler.record();
+                    }
+                    else if(fromApp){
+                        //mobile app needs wav extension to save recording 
+                        var url = 'recorded-audio-'+id+'.wav';
+                        cordovaRecorder = new Media(url,scope.cordovaRecordsucess,scope.cordovaRecorderror);
+                        cordovaRecorder.startRecord('recorded-audio-'+id);
                     }
                     else {
                         //Flash recording
@@ -353,7 +368,7 @@ angular.module('recorder').directive('recorderBuilder', [
                     var recordHandler = scope.getRecordHandler();
 
                     //To stop recording
-                    if(scope.isHtml5) {
+                    if(scope.isHtml5 && !fromApp) {
                         recordHandler.stop();
                         recordHandler.getBuffers(function(){
                             recordHandler.exportWAV(function(blob){
@@ -374,6 +389,12 @@ angular.module('recorder').directive('recorderBuilder', [
                             });
                         });
                     }
+                    else if(fromApp){
+                      cordovaRecorder.stopRecord('recorded-audio-'+id);
+                      if(angular.isDefined(scope.recordControl.onRecordComplete)){
+                        scope.recordControl.onRecordComplete(id);
+                      }
+                    }
                     else {
                         recordHandler.stopRecording(id);
 
@@ -389,17 +410,15 @@ angular.module('recorder').directive('recorderBuilder', [
                     var recordHandler = scope.getRecordHandler();
 
                     //separate play audio function based on browser
-                    if(scope.isHtml5) {
-                        var playbackElement = document.getElementById('recorded-audio-' + id);
-                        playbackElement.play();
+                    if(scope.isHtml5 || fromApp) {
 
-                        //To trigger complete function after playback ends
-                        playbackElement.addEventListener("ended", function onEnded(){
-
-                            playbackElement.removeEventListener("ended", onEnded);
+                        scope.playbackAudio({
+                          id: 'recorded-audio-' + id,
+                          onComplete: function() {
                             if(angular.isDefined(scope.recordControl.onPlaybackComplete)){
                                 scope.recordControl.onPlaybackComplete(id);
                             }
+                          }          
                         });
 
                     }
@@ -421,6 +440,38 @@ angular.module('recorder').directive('recorderBuilder', [
                     }
                 };
 
+                scope.playbackAudio = function(audioObject){
+
+                   //to play audio for device and desktop
+                   var audioPlayer = document.getElementById(audioObject.id);
+                   if(window.cordova){
+                      if(audioPlayer){
+                        var sourceAudio = audioPlayer.src;
+                      }
+                      else{
+                        //mobile app needs wav extension to play recording
+                        var sourceAudio = audioObject.id+'.wav';
+                      }
+
+                      var cordovaplayer = new Media(sourceAudio,
+                        function() {
+                          if(angular.isDefined(audioObject.onComplete)){
+                            audioObject.onComplete();
+                          }                          
+                        });
+                      cordovaplayer.play();
+                   }
+                   else{
+                       audioPlayer.play();
+                       audioPlayer.addEventListener("ended", function onEnded() {
+                         audioPlayer.removeEventListener("ended", onEnded);
+                         if(angular.isDefined(audioObject.onComplete)){
+                            audioObject.onComplete();
+                         }
+                       });
+                   }
+                };
+
                 if(angular.isDefined(scope.recordControl)) {
                   
                     scope.recordControl.startRecord = function (id) {
@@ -433,6 +484,10 @@ angular.module('recorder').directive('recorderBuilder', [
 
                     scope.recordControl.isHtml5 = function () {
                         return scope.isHtml5;
+                    };
+
+                    scope.recordControl.playbackAudio = function(audioObject){
+                        scope.playbackAudio(audioObject);
                     };
 
                     scope.recordControl.playbackRecording = function (id) {
