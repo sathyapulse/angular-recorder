@@ -32,6 +32,7 @@ angular.module('recorder').directive('recordPermissionHandler', [
            },
            template: '<div id="recorder-content"></div>',
            link: function (scope, element, attributes) {
+            
                var audioInput = null,
                    realAudioInput = null,
                    inputPoint = null,
@@ -70,6 +71,10 @@ angular.module('recorder').directive('recordPermissionHandler', [
 
                            case "microphone_connected":
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
+                                   if(window.location.protocol == 'https:'){
+                                     //to store permission for https websites
+                                     localStorage.setItem("permission", "given");
+                                   }
                                    scope.recordPermissionControl.onPermissionAllowed();
                                }
                                break;
@@ -154,27 +159,11 @@ angular.module('recorder').directive('recordPermissionHandler', [
                      
                    };
                    
-                   
-
                scope.recordPermissionControl.recordHandler = null;
                scope.recordPermissionControl.isHtml5 = null;
                scope.recordPermissionControl.isReady = false;
 
-               navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-
-               // Checks user media is supported in browser
-               if(navigator.getUserMedia) {
-
-                   scope.recordPermissionControl.isHtml5 = true;
-
-                   window.AudioContext = window.AudioContext || window.webkitAudioContext;
-
-                   if(window.AudioContext && !window.audioContextInstance) {
-                       window.audioContextInstance = new AudioContext();
-                   }
-                   audioContext = window.audioContextInstance;
-
-                   //HTML5 recorder
+               //HTML5 recorder
                    var gotStream = function(stream) {
                        inputPoint = audioContext.createGain();
 
@@ -188,7 +177,6 @@ angular.module('recorder').directive('recordPermissionHandler', [
                        inputPoint.connect( analyserNode );
 
                        audioRecorder = new Recorder( realAudioInput );
-
                        zeroGain = audioContext.createGain();
                        zeroGain.gain.value = 0.0;
                        inputPoint.connect( zeroGain );
@@ -197,8 +185,12 @@ angular.module('recorder').directive('recordPermissionHandler', [
                        scope.recordPermissionControl.isReady = true;
 
                        scope.recordPermissionControl.recordHandler = audioRecorder;
-
+                       
                        if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
+                           if(window.location.protocol == 'https:'){
+                             //to store permission for https websites
+                             localStorage.setItem("permission", "given");
+                           }
                            scope.recordPermissionControl.onPermissionAllowed();
                        }
 
@@ -210,6 +202,36 @@ angular.module('recorder').directive('recordPermissionHandler', [
                            scope.recordPermissionControl.onPermissionDenied();
                        }
                    };
+
+               navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+              
+               // Checks user media is supported in browser
+               if(navigator.getUserMedia) {
+
+                   scope.recordPermissionControl.isHtml5 = true;
+
+                   window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+                   if(window.AudioContext && !window.audioContextInstance) {
+                       window.audioContextInstance = new AudioContext();
+                   }
+                   audioContext = window.audioContextInstance;
+
+                   if(localStorage.getItem("permission") !== null){
+
+                      //to get permission from browser cache for returning user
+                        navigator.getUserMedia({
+                           "audio": {
+                               "mandatory": {
+                                   "googEchoCancellation": "false",
+                                   "googAutoGainControl": "false",
+                                   "googNoiseSuppression": "false",
+                                   "googHighpassFilter": "false"
+                               },
+                               "optional": []
+                           }
+                       }, gotStream, failStream);
+                   }
 
                }
                else {
@@ -249,7 +271,10 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                }
                            }
                        }
+                       //to root URL if script path is undefined
+                       return '/';
                    }());
+
 
                    swfobject.embedSWF( scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashvars, params, attrs);
                    //Flash external events initialised when user launches activity
@@ -300,7 +325,6 @@ angular.module('recorder').directive('recorderBuilder', [
                 recordControl: '='
             },
             link: function(scope, element, attributes) {
-
                 var currentId = null;
                 var cordovaRecorder = null;
 
@@ -331,7 +355,6 @@ angular.module('recorder').directive('recorderBuilder', [
 
                 scope.startRecord = function (id) {
                     var recordHandler = scope.getRecordHandler();
-
                     //Record iniation based on browser type
                     if(scope.isHtml5 && !fromApp) {
                         //HTML5 recording
