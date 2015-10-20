@@ -3,5 +3,8 @@
   "version": "2.0.1",
   "homepage": "https://github.com/sathyapulse/angular-recorder",
   "description": "Pure Angular js recorder which will support both Flash and HTML5",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "angular": "angularjs#~1.4.7"
+  }
 }

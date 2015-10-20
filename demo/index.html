@@ -1,0 +1,38 @@
+<html>
+
+<head>
+    <title>Demo for Audio Recorder</title>
+    <script src="../bower_components/angular/angular.min.js"></script>
+    <script src="../record-builder.js"></script>
+    <script src="../recorderjs/html5-recorder.js"></script>
+    <script src="../recorderjs/flash-recorder.js"></script>
+    <script src="demo.js"></script>
+</head>
+
+<body ng-app="recorderDemo">
+<div ng-controller='DemoController'>
+    <h1>Welcome to Recorder Demo </h1>
+
+    <button type="button">
+        Record Permission Request
+    </button>
+    <br/>
+    <br/>
+    <br/>
+    <recorder-builder id="mainAudio">
+        <div>
+            <button ng-click="record.startRecord()" type="button" ng-disabled="record.status.isRecording">
+                Start Record
+            </button>
+            <button ng-click="record.stopRecord()" type="button" ng-disabled="record.status.isRecording === false">
+                Stop Record
+            </button>
+            <button ng-click="record.playbackRecording()" type="button"
+                    ng-disabled="record.status.isRecording || !record.audioModel">
+                Play Back
+            </button>
+        </div>
+    </recorder-builder>
+</div>
+</body>
+</html>
