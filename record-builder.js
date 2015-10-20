@@ -7,7 +7,12 @@
    */
 
 // Creates recorder module for HTML5 & Flash
-  angular.module('recorder', []);
+  angular.module('recorder', [])
+    .constant('recorderScriptUrl', (function () {
+      var scripts = document.getElementsByTagName('script');
+      var myUrl = scripts[scripts.length - 1].getAttribute('src');
+      return myUrl.substr(0, myUrl.lastIndexOf('/') + 1);
+    }()));
 
   angular.module("recorder")
     .factory('recorderUtils', [
@@ -22,28 +27,7 @@
             }
 
             return _p8() + _p8(true) + _p8(true) + _p8();
-          },
-          scriptPath: (function (scripts) {
-            var scripts = document.getElementsByTagName('script');
-            for (var i = 0; i < scripts.length; i++) {
-              var script = scripts[i];
-              if (script.getAttribute.length !== undefined) {
-                var scriptIndex = script.src.indexOf('record-builder.js');
-                if (scriptIndex != -1) {
-                  return script.src.slice(0, scriptIndex);
-                }
-              }
-              else {
-                var scriptIndex = script.getAttribute('src', -1).indexOf('record-builder.js');
-
-                if (scriptIndex != -1) {
-                  return script.getAttribute('src', -1).slice(0, scriptIndex);
-                }
-              }
-            }
-            //to root URL if script path is undefined
-            return '/';
-          }())
+          }
         };
 
         return factory;
@@ -51,18 +35,13 @@
     ]);
 
   angular.module("recorder")
-    .factory('recorderService', ['recorderUtils',
-      function (recorderUtils) {
+    .provider('recorderService', ['recorderScriptUrl',
+      function (scriptPath) {
         var handler = null,
-          service = {
-            isHtml5: false,
-            isReady: false
-          },
-          permissionHandlers = {
-            onDenied: null,
-            onClosed: null,
-            onAllow: null
-          };
+          service = {isHtml5: false, isReady: false},
+          permissionHandlers = {onDenied: null, onClosed: null, onAllow: null},
+          forceSwf = false;
+
 
         var swfHandlerConfig = {
           isAvailable: false,
@@ -178,10 +157,13 @@
             }
 
           },
+          isInstalled: function () {
+            return swfobject.getFlashPlayerVersion().major > 0;
+          },
           init: function () {
             //Flash recorder external events
             service.isHtml5 = false;
-            if (!swfobject.hasFlashPlayerVersion()) {
+            if (!swfHandlerConfig.isInstalled()) {
               console.log('Flash is not installed, application cannot be initialized');
               return;
             }
@@ -192,7 +174,7 @@
               'name': 'recorder-app'
             }, flashVars = {
               'save_text': ''
-            }, scriptPath = recorderUtils.scriptPath;
+            };
 
             swfobject.embedSWF(scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashVars, params, attrs);
             //Flash external events initialised when user launches activity
@@ -213,6 +195,7 @@
           realAudioInput = null,
           inputPoint = null,
           audioRecorder = null;
+
         var html5HandlerConfig = {
           audioContextInstance: null,
           gotStream: function (stream) {
@@ -281,15 +264,18 @@
           || navigator.webkitGetUserMedia
           || navigator.mozGetUserMedia;
 
-        // Checks user media is supported in browser
-        if (navigator.getUserMedia) {
-          html5HandlerConfig.init();
-        } else {
-          swfHandlerConfig.init();
-        }
+
+        var init = function () {
+          // Checks user media is supported in browser
+          if (!forceSwf && navigator.getUserMedia) {
+            html5HandlerConfig.init();
+          } else {
+            swfHandlerConfig.init();
+          }
+        };
 
         service.isAvailable = function () {
-          return service.isHtml5 || swfobject.hasFlashPlayerVersion();
+          return service.isHtml5 || swfHandlerConfig.isInstalled();
         };
 
         service.getHandler = function () {
@@ -301,6 +287,7 @@
             console.warn("Neither HTML5 nor SWF is supported.");
             return;
           }
+
           if (listeners) {
             angular.extend(permissionHandlers, listeners);
           }
@@ -313,7 +300,15 @@
           }
         };
 
-        return service;
+        return {
+          $get: function () {
+            init();
+            return service;
+          },
+          forceSwf: function (value) {
+            forceSwf = value;
+          }
+        };
       }])
   ;
 
@@ -329,6 +324,7 @@
             cordovaRecorder = null,
             fromApp = !!window.cordova;
 
+          control.isAvailable = service.isAvailable();
           var scopeApply = function () {
             try {
               $scope.$apply();
@@ -536,9 +532,10 @@
           controllerAs: 'record',
           bindToController: true,
           template: function (element, attrs) {
-            return '<div class="audioRecorder">'
-              + element.html()
-              + '</div>';
+            return '<div class="audioRecorder">' +
+              '<div id="recorder-content"></div>' +
+              element.html() +
+              '</div>';
           },
           controller: RecorderController
         };

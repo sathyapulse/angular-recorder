@@ -13,14 +13,8 @@
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <button type="button">
-        Record Permission Request
-    </button>
-    <br/>
-    <br/>
-    <br/>
     <recorder-builder id="mainAudio">
-        <div>
+        <div ng-if="record.isAvailable">
             <button ng-click="record.startRecord()" type="button" ng-disabled="record.status.isRecording">
                 Start Record
             </button>
@@ -32,7 +26,12 @@
                 Play Back
             </button>
         </div>
+
+        <div ng-if="!record.isAvailable">
+            Your browser does not support this feature natively, please use latest version of <a href="https://www.google.com/chrome/browser" target="_blank">Google Chrome</a> or <a href="https://www.mozilla.org/en-US/firefox/new/" target="_blank">Mozilla Firefox</a>. If you're on Safari or Internet Explorer, you can install <a href="https://get.adobe.com/flashplayer/">Adobe Flash</a>  to use this feature.
+        </div>
     </recorder-builder>
+
 </div>
 </body>
 </html>
