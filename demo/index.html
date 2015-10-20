@@ -3,9 +3,9 @@
 <head>
     <title>Demo for Audio Recorder</title>
     <script src="../bower_components/angular/angular.min.js"></script>
-    <script src="../record-builder.js"></script>
-    <script src="../recorderjs/html5-recorder.js"></script>
-    <script src="../recorderjs/flash-recorder.js"></script>
+    <script src="../audio-recorder.js"></script>
+    <script src="../lib/html5-recorder.js"></script>
+    <script src="../lib/flash-recorder.js"></script>
     <script src="demo.js"></script>
 </head>
 
@@ -13,24 +13,24 @@
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <recorder-builder id="mainAudio">
-        <div ng-if="record.isAvailable">
-            <button ng-click="record.startRecord()" type="button" ng-disabled="record.status.isRecording">
+    <ng-audio-recorder id="mainAudio" show-player="true">
+        <div ng-if="recorder.isAvailable">
+            <button ng-click="recorder.startRecord()" type="button" ng-disabled="recorder.status.isRecording">
                 Start Record
             </button>
-            <button ng-click="record.stopRecord()" type="button" ng-disabled="record.status.isRecording === false">
+            <button ng-click="recorder.stopRecord()" type="button" ng-disabled="recorder.status.isRecording === false">
                 Stop Record
             </button>
-            <button ng-click="record.playbackRecording()" type="button"
-                    ng-disabled="record.status.isRecording || !record.audioModel">
+            <button ng-click="recorder.playbackRecording()" type="button"
+                    ng-disabled="recorder.status.isRecording || !recorder.audioModel">
                 Play Back
             </button>
         </div>
 
-        <div ng-if="!record.isAvailable">
+        <div ng-if="!recorder.isAvailable">
             Your browser does not support this feature natively, please use latest version of <a href="https://www.google.com/chrome/browser" target="_blank">Google Chrome</a> or <a href="https://www.mozilla.org/en-US/firefox/new/" target="_blank">Mozilla Firefox</a>. If you're on Safari or Internet Explorer, you can install <a href="https://get.adobe.com/flashplayer/">Adobe Flash</a>  to use this feature.
         </div>
-    </recorder-builder>
+    </ng-audio-recorder>
 
 </div>
 </body>

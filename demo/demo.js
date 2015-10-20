@@ -2,7 +2,7 @@
   'use strict';
   
   angular.module('recorderDemo', [
-    'recorder'
+    'angularAudioRecorder'
   ])
   .controller('DemoController', function($scope, $timeout){
     console.log("Loaded");
