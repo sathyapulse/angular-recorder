@@ -377,7 +377,8 @@
         var control = this, cordovaMedia = {
           recorder: null,
           url: null
-        }, timing = null;
+        }, timing = null, audioObjId = 'recorded-audio-' + control.id;
+        ;
 
         control.isAvailable = service.isAvailable();
         var scopeApply = function () {
@@ -468,7 +469,6 @@
 
         var displayPlayback = function (blob) {
           var url = (window.URL || window.webkitURL).createObjectURL(blob);
-          var audioObjId = 'recorded-audio-' + control.id;
           if (document.getElementById(audioObjId) == null) {
             element.append('<audio src=' + url + ' type="audio/mp3" id="' + audioObjId + '"></audio>');
           } else {
@@ -485,6 +485,10 @@
             scopeApply();
           });
 
+        };
+
+        control.getAudioPlayer = function () {
+          return document.getElementById(audioObjId);
         };
 
         control.stopRecord = function () {
@@ -519,7 +523,8 @@
             });
           } else if (service.isHtml5) {
             recordHandler.stop();
-            recordHandler.getBuffers(function () {
+            recordHandler.getBuffers(function (audioBuffer) {
+              control.audioBuffer = audioBuffer;
               recordHandler.exportWAV(function (blob) {
                 completed(blob);
                 scopeApply();
@@ -536,8 +541,7 @@
             return false;
           }
 
-          var audioObjId = 'recorded-audio-' + control.id;
-          var audioPlayer = document.getElementById(audioObjId);
+
           if (service.isCordova) {
             var cPlayer = new Media(cordovaMedia.url, function () {
               control.onPlaybackComplete(control.id);
@@ -547,7 +551,7 @@
             });
             cPlayer.play();
           } else {
-            audioPlayer.play();
+            control.getAudioPlayer().play();
           }
           control.onPlaybackStart();
         };
@@ -557,9 +561,9 @@
             return false;
           }
 
-          var audioObjId = 'recorded-audio-' + control.id,
-            audioPlayer = document.getElementById(audioObjId),
-            blobUrl = (audioPlayer !== null) ? audioPlayer.src : (window.URL || window.webkitURL).createObjectURL(blob);
+          var audioPlayer = control.getAudioPlayer(),
+            blobUrl = (audioPlayer !== null) ? audioPlayer.src :
+              (window.URL || window.webkitURL).createObjectURL(blob);
 
           angular.element('<a href="' + blobUrl + '" download></a>')[0].click();
 
@@ -608,8 +612,8 @@
     }
   ]);
 
-  ngRecorder.directive('ngAudioRecorderAnalyzer', ['$timeout', 'recorderService',
-    function ($timeout, service) {
+  ngRecorder.directive('ngAudioRecorderAnalyzer', ['recorderService',
+    function (service) {
       window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame;
 
       window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
@@ -617,10 +621,15 @@
       return {
         restrict: 'E',
         require: '^ngAudioRecorder',
-        template: '<div class="audioRecorder-analyzer">' +
+        template: '<div ng-if="!hide" class="audioRecorder-analyzer">' +
         '<canvas class="analyzer"></canvas>' +
         '</div>',
         link: function (scope, element, attrs, recorder) {
+          if (!service.isHtml5) {
+            scope.hide = true;
+            return;
+          }
+
           var canvasWidth, canvasHeight, rafID, analyserContext, props = service.$html5AudioProps;
 
           function updateAnalysers(time) {
@@ -689,5 +698,99 @@
       };
     }
   ]);
+
+  ngRecorder.directive('ngAudioRecorderWaveView', ['recorderService',
+    function (service) {
+
+      return {
+        restrict: 'E',
+        require: '^ngAudioRecorder',
+        template: '<div ng-if="!hide" class="audioRecorder-waveView">' +
+        '<canvas class="waveview"></canvas>' +
+        '</div>',
+        link: function (scope, element, attrs, recorder) {
+          if (!service.isHtml5) {
+            scope.hide = true;
+            return;
+          }
+
+          var animId = null;
+          function gotBuffers(buffers) {
+            var canvas = element.find("canvas")[0],
+              data = buffers[0],
+              context=canvas.getContext('2d'),
+              audioPlayer = recorder.getAudioPlayer()
+              ;
+
+            function drawBuffer(time) {
+              var width = canvas.width, height = canvas.height;
+              var step = Math.ceil(data.length / width);
+              var amp = height / 2;
+              context.fillStyle = "silver";
+              context.clearRect(0, 0, width, height);
+              for (var i = 0; i < width; i++) {
+                var min = 1.0;
+                var max = -1.0;
+                for (var j = 0; j < step; j++) {
+                  var datum = data[(i * step) + j];
+                  if (datum < min)
+                    min = datum;
+                  if (datum > max)
+                    max = datum;
+                }
+                context.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+              }
+
+              if(time !== -1){
+                context.beginPath();
+                var x = (audioPlayer.currentTime / Math.max(1, audioPlayer.duration)) * width;
+                context.strokeStyle = 'black';
+                context.lineWidth = 2;
+                context.moveTo(x, 2);
+                context.lineTo(x, height - 2);
+                context.stroke();
+                animId = window.requestAnimationFrame(drawBuffer);
+                console.log('Animated: '+ time);
+              }
+            };
+
+            function cancelAnim(){
+              window.cancelAnimationFrame(animId);
+              animId = null;
+            };
+            drawBuffer(-1);
+
+            recorder.onPlaybackStart = (function (original) {
+              return function () {
+                original.apply();
+                //start animation
+                animId = window.requestAnimationFrame(drawBuffer);
+              };
+            })(recorder.onPlaybackStart);
+
+            recorder.onPlaybackComplete = (function (original) {
+              return function () {
+                original.apply();
+                cancelAnim();
+              };
+            })(recorder.onPlaybackComplete);
+
+            element.on('$destroy', function(){
+              cancelAnim();
+            });
+          };
+
+
+
+          recorder.onRecordComplete = (function (original) {
+            return function () {
+              original.apply();
+              gotBuffers(recorder.audioBuffer);
+            };
+          })(recorder.onRecordComplete);
+
+        }
+      };
+    }]);
 
 })();

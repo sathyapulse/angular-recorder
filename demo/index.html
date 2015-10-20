@@ -35,6 +35,10 @@
                 <ng-audio-recorder-analyzer></ng-audio-recorder-analyzer>
             </div>
             <br/>
+            <div ng-show="!recorder.status.isRecording && recorder.audioModel">
+                <ng-audio-recorder-wave-view></ng-audio-recorder-wave-view>
+            </div>
+            <br/>
 
             <h2 style="font-family: sans-serif; text-align: center; width: 60px; border-radius: 20px;
         border: solid 2px #333; padding: 20px 10px;" ng-if="recorder.status.isRecording">
