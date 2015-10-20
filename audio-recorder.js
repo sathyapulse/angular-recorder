@@ -80,7 +80,7 @@
           FWRecorder.setUseEchoSuppression(false);
           FWRecorder.setLoopBack(false);
         },
-        stopHandlers: {},
+        allowed: false,
         externalEvents: function (eventName) {
           //Actions based on user interaction with flash
           var name = arguments[1];
@@ -91,8 +91,6 @@
               FWRecorder.connect('recorder-app', 0);
               FWRecorder.recorderOriginalWidth = 1;
               FWRecorder.recorderOriginalHeight = 1;
-              service.isReady = true;
-              handler = FWRecorder;
               break;
 
             case "microphone_user_request":
@@ -100,22 +98,21 @@
               break;
 
             case "microphone_connected":
-              if (angular.isFunction(permissionHandlers.onAllowed)) {
-                if (window.location.protocol == 'https:') {
-                  //to store permission for https websites
-                  localStorage.setItem("permission", "given");
-                }
-                permissionHandlers.onAllowed();
-              }
+              console.log('Permission to use MIC granted');
+              swfHandlerConfig.allowed = true;
               break;
 
             case "microphone_not_connected":
-              if (angular.isFunction(permissionHandlers.onDenied)) {
-                permissionHandlers.onDenied();
-              }
+              console.log('Permission to use MIC denied');
+              swfHandlerConfig.allowed = false;
               break;
 
             case "permission_panel_closed":
+              if (swfHandlerConfig.allowed) {
+                swfHandlerConfig.setAllowed();
+              } else {
+                swfHandlerConfig.setDeclined();
+              }
               FWRecorder.defaultSize();
               if (angular.isFunction(permissionHandlers.onClosed)) {
                 permissionHandlers.onClosed();
@@ -171,6 +168,7 @@
             case "microphone_level":
             case "microphone_activity":
             case "observing_level_stopped":
+            default:
               console.log('Event Received: ', arguments);
               break;
           }
@@ -200,9 +198,31 @@
           window.fwr_event_handler = swfHandlerConfig.externalEvents;
           window.configureMicrophone = swfHandlerConfig.configureMic;
         },
+        setAllowed: function () {
+          service.isReady = true;
+          handler = FWRecorder;
+          if (angular.isFunction(permissionHandlers.onAllowed)) {
+            permissionHandlers.onAllowed();
+          }
+        },
+        setDeclined: function () {
+          service.isReady = false;
+          handler = null;
+          if (angular.isFunction(permissionHandlers.onDenied)) {
+            permissionHandlers.onDenied();
+          }
+        },
         getPermission: function () {
           if (swfHandlerConfig.isAvailable) {
-            FWRecorder.showPermissionWindow({permanent: true});
+            if (!FWRecorder.isMicrophoneAccessible()) {
+              FWRecorder.showPermissionWindow({permanent: true});
+            } else {
+              swfHandlerConfig.allowed = true;
+              setTimeout(function(){
+                swfHandlerConfig.setAllowed();
+              }, 100);
+            }
+
           }
         }
       };
