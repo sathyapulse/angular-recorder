@@ -236,7 +236,7 @@
             service.isReady = true;
             handler = audioRecorder;
 
-            if (angular.isDefined(permissionHandlers.onAllowed)) {
+            if (angular.isFunction(permissionHandlers.onAllowed)) {
               if (window.location.protocol == 'https:') {
                 //to store permission for https websites
                 localStorage.setItem("permission", "given");
@@ -321,212 +321,228 @@
 // Creates recorder builder
   angular.module('recorder')
     .directive('recorderBuilder', ['$compile',
-    function ($compile) {
+      function ($compile) {
 
-      return {
-        restrict: 'EA',
-        scope: {
-          audioModel: '=',
-          id: '@',
-          onRecordStart: '&',
-          onRecordComplete: '&',
-          onPlaybackComplete: '&',
-          onReady: '&',
-          playbackOnStop: '@'
-        },
-        controllerAs: 'record',
-        bindToController: true,
-        controller: ['$element', 'recorderService', 'recorderUtils','$scope',
-          function (element, service, recorderUtils) {
-            var control = this,
-              currentId = null,
-              cordovaRecorder = null,
-              fromApp = !!window.cordova;
+        var RecorderController = function (element, service, recorderUtils, $scope) {
+          var control = this,
+            currentId = null,
+            cordovaRecorder = null,
+            fromApp = !!window.cordova;
 
-            //Sets ID for the element if ID doesn't exists
-            if (!control.id) {
-              control.id = recorderUtils.generateUuid();
-              element.attr("id", control.id);
+          var scopeApply = function () {
+            try {
+              $scope.$apply();
+            } catch (e) {
+
             }
+          };
 
-            control.status = {
-              isRecording: false
-            };
+          //Sets ID for the element if ID doesn't exists
+          if (!control.id) {
+            control.id = recorderUtils.generateUuid();
+            element.attr("id", control.id);
+          }
 
-            control.isRecording = function(){
-              return control.status.isRecording;
-            };
+          control.status = {
+            isRecording: false
+          };
 
-            control.isDenied = false;
-            control.playbackOnStop = control.playbackOnStop !== undefined ? control.playbackOnStop : true;
+          control.isRecording = function () {
+            return control.status.isRecording;
+          };
+
+          control.isDenied = false;
+          control.playbackOnStop = control.playbackOnStop !== undefined ? control.playbackOnStop : true;
 
 
-            control.startRecord = function () {
+          control.startRecord = function () {
 
-              if (!service.isAvailable()) {
-                return;
+            if (!service.isAvailable()) {
+              return;
+            }
+            var id = control.id;
+            var recordHandler = service.getHandler();
+            //Record initiation based on browser type
+            var start = function () {
+              if (fromApp) {
+                //mobile app needs wav extension to save recording
+                var url = 'recorded-audio-' + id + '.wav';
+                cordovaRecorder = new Media(url, control.cordovaRecordsucess, control.cordovaRecorderror);
+                cordovaRecorder.startRecord('recorded-audio-' + id);
               }
-              var id = control.id;
-              var recordHandler = service.getHandler();
-              //Record initiation based on browser type
-              var start = function () {
-                if (fromApp) {
-                  //mobile app needs wav extension to save recording
-                  var url = 'recorded-audio-' + id + '.wav';
-                  cordovaRecorder = new Media(url, control.cordovaRecordsucess, control.cordovaRecorderror);
-                  cordovaRecorder.startRecord('recorded-audio-' + id);
-                  control.status.isRecording = true;
+              else if (service.isHtml5) {
+                //HTML5 recording
+                if (!recordHandler) {
+                  return;
                 }
-                else if (service.isHtml5) {
-                  //HTML5 recording
-                  if (!recordHandler) {
-                    return;
-                  }
-                  console.log('HTML5 Recording');
-                  control.status.isRecording = true;
-                  recordHandler.clear();
-                  recordHandler.record();
-
+                console.log('HTML5 Recording');
+                recordHandler.clear();
+                recordHandler.record();
+              }
+              else {
+                //Flash recording
+                if (!service.isReady) {
+                  //Stop recording if the flash object is not ready
+                  return;
                 }
-                else {
-                  //Flash recording
-                  if (!service.isReady) {
-                    //Stop recording if the flash object is not ready
-                    return;
-                  }
-                  recordHandler.record(id, 'audio.wav');
-                  control.status.isRecording = true;
-                }
-              };
-
-              if (fromApp || recordHandler) {
-                start();
-              } else if (!control.isDenied) {
-                //probably permission was never asked
-                service.showPermission({
-                  onDenied: function () {
-                    control.isDenied = true
-                  },
-                  onAllowed: function () {
-                    start();
-                  }
-                });
+                recordHandler.record(id, 'audio.wav');
               }
 
-
+              control.status.isRecording = true;
               control.onRecordStart(id);
             };
 
-            control.displayPlayback = function (blob) {
-              var url = (window.URL || window.webkitURL).createObjectURL(blob);
-              if (document.getElementById('recorded-audio-' + control.id) == null) {
-                element.append('<audio controls src=' + url + ' type="audio/mp3" id="recorded-audio-' + control.id + '"></audio>');
-              } else {
-                document.getElementById('recorded-audio-' + control.id).src = url;
-              }
-            };
-
-            control.stopRecord = function () {
-              var id = control.id;
-              if (!service.isAvailable() || !isRecording) {
-                return false;
-              }
-
-              var recordHandler = service.getHandler();
-              var completed = function (blob) {
-                control.audioModel = blob;
-                if (control.playbackOnStop || control.playbackOnStop === undefined) {
-                  control.displayPlayback(blob);
+            if (fromApp || recordHandler) {
+              start();
+              console.log('Started ' + Date.now());
+            } else if (!control.isDenied) {
+              //probably permission was never asked
+              service.showPermission({
+                onDenied: function () {
+                  control.isDenied = true;
+                  $scope.$apply();
+                },
+                onAllowed: function () {
+                  recordHandler = service.getHandler();
+                  start();
+                  scopeApply();
                 }
-                isRecording = false;
-                control.onRecordComplete(id);
-              };
+              });
+            }
 
-              //To stop recording
-              if (fromApp) {
-                cordovaRecorder.stopRecord('recorded-audio-' + id);
-                completed([]);
+          };
+
+          control.displayPlayback = function (blob) {
+            var url = (window.URL || window.webkitURL).createObjectURL(blob);
+            if (document.getElementById('recorded-audio-' + control.id) == null) {
+              element.append('<audio controls src=' + url + ' type="audio/mp3" id="recorded-audio-' + control.id + '"></audio>');
+            } else {
+              document.getElementById('recorded-audio-' + control.id).src = url;
+            }
+          };
+
+          control.stopRecord = function () {
+            var id = control.id;
+            if (!service.isAvailable() || !control.status.isRecording) {
+              return false;
+            }
+
+            var recordHandler = service.getHandler();
+            var completed = function (blob) {
+              control.audioModel = blob;
+              if (control.playbackOnStop || control.playbackOnStop === undefined) {
+                control.displayPlayback(blob);
               }
-              else if (service.isHtml5) {
-                recordHandler.stop();
-                recordHandler.getBuffers(function () {
-                  recordHandler.exportWAV(function (blob) {
-                    completed(blob);
-                  });
-                });
-              } else {
-                recordHandler.stopRecording(id);
-                completed(recordHandler.getBlob(id));
-              }
+              control.status.isRecording = false;
+              control.onRecordComplete(id);
+              scopeApply();
             };
 
-            control.playbackRecording = function () {
-              if (!service.isAvailable() || isRecording) {
-                return false;
-              }
+            //To stop recording
+            if (fromApp) {
+              cordovaRecorder.stopRecord('recorded-audio-' + id);
+              completed([]);
+            }
+            else if (service.isHtml5) {
+              recordHandler.stop();
+              recordHandler.getBuffers(function () {
+                recordHandler.exportWAV(function (blob) {
+                  completed(blob);
+                });
+              });
+            } else {
+              recordHandler.stopRecording(id);
+              completed(recordHandler.getBlob(id));
+            }
+          };
 
-              var id = control.id, recordHandler = service.getHandler();
-              //separate play audio function based on browser
-              if (service.isHtml5 || fromApp) {
-                playbackAudio({
-                  id: 'recorded-audio-' + id,
-                  onComplete: function () {
+          control.playbackRecording = function () {
+            if (!service.isAvailable() || control.status.isRecording || !control.audioModel) {
+              return false;
+            }
+
+            var id = control.id, recordHandler = service.getHandler();
+            //separate play audio function based on browser
+            if (service.isHtml5 || fromApp) {
+              playbackAudio({
+                id: 'recorded-audio-' + id,
+                onComplete: function () {
+                  control.onPlaybackComplete(id);
+                  scopeApply();
+                }
+              });
+            } else {
+              recordHandler.playBack(id);
+              window.fwr_event_handler = function (eventName) {
+                var name;
+                switch (arguments[0]) {
+                  case "stopped":
                     control.onPlaybackComplete(id);
-                  }
-                });
-              } else {
-                recordHandler.playBack(id);
-                window.fwr_event_handler = function (eventName) {
-                  var name;
-                  switch (arguments[0]) {
-                    case "stopped":
-                      control.onPlaybackComplete(id);
-                      name = arguments[1];
-                      break;
-                  }
+                    scopeApply();
+                    name = arguments[1];
+                    break;
                 }
               }
-            };
+            }
+          };
 
-            var playbackAudio = function (audioObject) {
-              //to play audio for device and desktop
-              var audioPlayer = document.getElementById(audioObject.id);
-              if (fromApp) {
-                if (audioPlayer) {
-                  var sourceAudio = audioPlayer.src;
-                }
-                else {
-                  //mobile app needs wav extension to play recording
-                  var sourceAudio = audioObject.id + '.wav';
-                }
-
-                var cordovaPlayer = new Media(sourceAudio,
-                  function () {
-                    audioObject.onComplete();
-                  });
-                cordovaPlayer.play();
+          var playbackAudio = function (audioObject) {
+            //to play audio for device and desktop
+            var audioPlayer = document.getElementById(audioObject.id);
+            if (fromApp) {
+              if (audioPlayer) {
+                var sourceAudio = audioPlayer.src;
               }
               else {
-                audioPlayer.play();
-                audioPlayer.addEventListener("ended", function onEnded() {
-                  audioPlayer.removeEventListener("ended", onEnded);
+                //mobile app needs wav extension to play recording
+                var sourceAudio = audioObject.id + '.wav';
+              }
+
+              var cordovaPlayer = new Media(sourceAudio,
+                function () {
                   audioObject.onComplete();
                 });
-              }
-            };
+              cordovaPlayer.play();
+            }
+            else {
+              audioPlayer.play();
+              audioPlayer.addEventListener("ended", function onEnded() {
+                audioPlayer.removeEventListener("ended", onEnded);
+                audioObject.onComplete();
+              });
+            }
+          };
 
-            control.isHtml5 = function () {
-              return service.isHtml5;
-            };
+          control.isHtml5 = function () {
+            return service.isHtml5;
+          };
 
-            control.onReady();
-          }
-        ],
-        link: function(scope, element, attrs, controller){
-          $compile(element.contents())(scope);
-        }
-      };
-    }
-  ]);
+          control.onReady();
+        };
+
+        RecorderController.$inject = ['$element', 'recorderService', 'recorderUtils', '$scope'];
+
+        return {
+          restrict: 'EA',
+          scope: {
+            audioModel: '=',
+            id: '@',
+            onRecordStart: '&',
+            onRecordComplete: '&',
+            onPlaybackComplete: '&',
+            onReady: '&',
+            playbackOnStop: '@'
+          },
+          controllerAs: 'record',
+          bindToController: true,
+          template: function (element, attrs) {
+            return '<div class="audioRecorder">'
+              + element.html()
+              + '</div>';
+          },
+          controller: RecorderController
+        };
+      }
+    ]);
 
 })();
