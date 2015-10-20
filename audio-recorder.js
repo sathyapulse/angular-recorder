@@ -32,11 +32,11 @@
             return 'record-audio' + id + '.wav';
           }
 
-          var url = '';
-          if (window.cordova.platformId === 'ios') {
-            url = 'documents://'
-          }
-          url += Date.now() + '-recorded-audio-' + id.replace('/[^A-Za-z0-9_-]+/gi', '-');
+          var url = cordova.file.tempDirectory
+            || cordova.file.externalApplicationStorageDirectory
+            || cordova.file.sharedDirectory;
+
+          url += Date.now() + '_recordedAudio_' + id.replace('/[^A-Za-z0-9_-]+/gi', '-');
           switch (window.cordova.platformId) {
             case 'ios':
               url += '.wav'
@@ -46,7 +46,7 @@
               url += '.amr';
               break;
 
-            case 'windows':
+            case 'wp':
               url += '.wma';
               break;
 
@@ -306,9 +306,6 @@
       var init = function () {
         if ('cordova' in window) {
           service.isCordova = true;
-          if (!('Media' in window)) {
-            throw new Error('The Media plugin for cordova is required for this library, add plugin using "cordova plugin add cordova-plugin-media"');
-          }
         } else if (!forceSwf && navigator.getUserMedia) {
           html5HandlerConfig.init();
         } else {
@@ -317,8 +314,14 @@
       };
 
       service.isAvailable = function () {
-        return (service.isCordova && ('Media' in window))
-          || service.isHtml5
+        if(service.isCordova){
+          if (!('Media' in window)) {
+            throw new Error('The Media plugin for cordova is required for this library, add plugin using "cordova plugin add cordova-plugin-media"');
+          }
+          return true;
+        }
+
+        return service.isHtml5
           || swfHandlerConfig.isInstalled();
       };
 
@@ -503,7 +506,15 @@
           if (service.isCordova) {
             cordovaMedia.recorder.stopRecord();
             completed(null);
-            control.audioModel = new Blob([]);
+            window.resolveLocalFileSystemURL(cordovaMedia.url, function(entry){
+              entry.file(function(blob){
+                control.audioModel = blob;
+                console.log('File resolved: ', blob.size, ' Type: ', blob.type);
+                scopeApply();
+              });
+            }, function(err){
+              console.log('Could not retrieve file, error code:', err.code);
+            });
           } else if (service.isHtml5) {
             recordHandler.stop();
             recordHandler.getBuffers(function () {

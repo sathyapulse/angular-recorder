@@ -9,11 +9,11 @@
     <script src="demo.js"></script>
 </head>
 
-<body ng-app="recorderDemo">
+<body ng-app="recorderDemo" ng-cloak="">
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <ng-audio-recorder id="mainAudio" show-player="true">
+    <ng-audio-recorder id="mainAudio" show-player="true" audio-model="recorded">
         <div ng-if="recorder.isAvailable">
             <button ng-click="recorder.startRecord()" type="button" ng-disabled="recorder.status.isRecording">
                 Start Record
