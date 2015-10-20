@@ -365,16 +365,14 @@
 
 
 // Creates recorder builder
-  ngRecorder.directive('ngAudioRecorder', ['$compile',
-    function ($compile) {
+  ngRecorder.directive('ngAudioRecorder', [
+    function () {
 
-      var RecorderController = function (element, service, recorderUtils, $scope) {
-        var control = this;
-
-        var cordovaMedia = {
+      var RecorderController = function (element, service, recorderUtils, $scope, $timeout, $interval) {
+        var control = this, cordovaMedia = {
           recorder: null,
           url: null
-        };
+        }, timing = null;
 
         control.isAvailable = service.isAvailable();
         var scopeApply = function () {
@@ -397,15 +395,10 @@
           isRecording: false
         };
 
-        control.isRecording = function () {
-          return control.status.isRecording;
-        };
-
-        control.isDenied = false;
-
+        control.isDenied = null;
+        control.elapsedTime = 0;
 
         control.startRecord = function () {
-
           if (!service.isAvailable()) {
             return;
           }
@@ -443,11 +436,14 @@
 
             control.status.isRecording = true;
             control.onRecordStart(id);
+            control.elapsedTime = 0;
+            timing = $interval(function(){
+              ++control.elapsedTime;
+            }, 1000);
           };
 
           if (service.isCordova || recordHandler) {
             start();
-            console.log('Started ' + Date.now());
           } else if (!control.isDenied) {
             //probably permission was never asked
             service.showPermission({
@@ -456,6 +452,7 @@
                 $scope.$apply();
               },
               onAllowed: function () {
+                control.isDenied = false;
                 recordHandler = service.getHandler();
                 start();
                 scopeApply();
@@ -465,7 +462,7 @@
 
         };
 
-        control.displayPlayback = function (blob) {
+        var displayPlayback = function (blob) {
           var url = (window.URL || window.webkitURL).createObjectURL(blob);
           var audioObjId = 'recorded-audio-' + control.id;
           if (document.getElementById(audioObjId) == null) {
@@ -496,10 +493,11 @@
           var completed = function (blob) {
             control.audioModel = blob;
             if (blob) {
-              control.displayPlayback(blob);
+              displayPlayback(blob);
             }
             control.status.isRecording = false;
             control.onRecordComplete(id);
+            $interval.cancel(timing);
           };
 
           //To stop recording
@@ -547,16 +545,26 @@
           } else {
             audioPlayer.play();
           }
+          control.onPlaybackStart();
         };
 
         control.isHtml5 = function () {
           return service.isHtml5;
         };
 
-        control.onReady();
+        if(control.autoStart){
+          $timeout(function(){
+            control.startRecord();
+          }, 1000);
+        }
+
+        element.on('$destroy', function(){
+          $interval.cancel(timing);
+        });
+
       };
 
-      RecorderController.$inject = ['$element', 'recorderService', 'recorderUtils', '$scope'];
+      RecorderController.$inject = ['$element', 'recorderService', 'recorderUtils', '$scope', '$timeout', '$interval'];
 
       return {
         restrict: 'EA',
@@ -566,8 +574,9 @@
           onRecordStart: '&',
           onRecordComplete: '&',
           onPlaybackComplete: '&',
-          onReady: '&',
-          showPlayer: '@'
+          onPlaybackStart: '&',
+          showPlayer: '@',
+          autoStart: '@'
         },
         controllerAs: 'recorder',
         bindToController: true,
