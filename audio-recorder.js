@@ -218,7 +218,7 @@
               FWRecorder.showPermissionWindow({permanent: true});
             } else {
               swfHandlerConfig.allowed = true;
-              setTimeout(function(){
+              setTimeout(function () {
                 swfHandlerConfig.setAllowed();
               }, 100);
             }
@@ -227,33 +227,37 @@
         }
       };
 
-      var audioInput = null,
-        realAudioInput = null,
-        inputPoint = null,
-        audioRecorder = null;
+
+      var html5AudioProps = {
+        audioContext: null,
+        inputPoint: null,
+        audioInput: null,
+        audioRecorder: null,
+        analyserNode: null
+      };
 
       var html5HandlerConfig = {
-        audioContextInstance: null,
         gotStream: function (stream) {
-          var audioContext = html5HandlerConfig.audioContextInstance;
-          inputPoint = audioContext.createGain();
+          var audioContext = html5AudioProps.audioContext;
           // Create an AudioNode from the stream.
-          realAudioInput = audioContext.createMediaStreamSource(stream);
-          audioInput = realAudioInput;
-          audioInput.connect(inputPoint);
+          html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
+          html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
 
           //analyser
-          var analyserNode = audioContext.createAnalyser();
-          analyserNode.fftSize = 2048;
-          inputPoint.connect(analyserNode);
-          audioRecorder = new Recorder(realAudioInput);
+          html5AudioProps.analyserNode = audioContext.createAnalyser();
+          html5AudioProps.analyserNode.fftSize = 2048;
+          html5AudioProps.inputPoint.connect(html5AudioProps.analyserNode);
+          html5AudioProps.audioRecorder = new Recorder(html5AudioProps.audioInput);
+
+          //create Gain
           var zeroGain = audioContext.createGain();
           zeroGain.gain.value = 0.0;
-          inputPoint.connect(zeroGain);
+          html5AudioProps.inputPoint.connect(zeroGain);
           zeroGain.connect(audioContext.destination);
 
+          //service booted
           service.isReady = true;
-          handler = audioRecorder;
+          handler = html5AudioProps.audioRecorder;
 
           if (angular.isFunction(permissionHandlers.onAllowed)) {
             if (window.location.protocol == 'https:') {
@@ -286,9 +290,10 @@
         init: function () {
           service.isHtml5 = true;
           var AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext && !html5HandlerConfig.audioContextInstance) {
-            html5HandlerConfig.audioContextInstance = new AudioContext();
+          if (AudioContext && !html5AudioProps.audioContext) {
+            html5AudioProps.audioContext = new AudioContext();
           }
+
           if (localStorage.getItem("permission") !== null) {
             //to get permission from browser cache for returning user
             html5HandlerConfig.getPermission();
@@ -314,7 +319,7 @@
       };
 
       service.isAvailable = function () {
-        if(service.isCordova){
+        if (service.isCordova) {
           if (!('Media' in window)) {
             throw new Error('The Media plugin for cordova is required for this library, add plugin using "cordova plugin add cordova-plugin-media"');
           }
@@ -341,12 +346,12 @@
 
         if (service.isHtml5) {
           html5HandlerConfig.getPermission();
-        }
-        else {
+        } else {
           swfHandlerConfig.getPermission();
         }
       };
 
+      service.$html5AudioProps = html5AudioProps;
 
       return {
         $get: ['recorderUtils',
@@ -380,7 +385,6 @@
             try {
               $scope.$apply();
             } catch (e) {
-
             }
           }
         };
@@ -437,7 +441,7 @@
             control.status.isRecording = true;
             control.onRecordStart(id);
             control.elapsedTime = 0;
-            timing = $interval(function(){
+            timing = $interval(function () {
               ++control.elapsedTime;
             }, 1000);
           };
@@ -504,13 +508,13 @@
           if (service.isCordova) {
             cordovaMedia.recorder.stopRecord();
             completed(null);
-            window.resolveLocalFileSystemURL(cordovaMedia.url, function(entry){
-              entry.file(function(blob){
+            window.resolveLocalFileSystemURL(cordovaMedia.url, function (entry) {
+              entry.file(function (blob) {
                 control.audioModel = blob;
                 console.log('File resolved: ', blob.size, ' Type: ', blob.type);
                 scopeApply();
               });
-            }, function(err){
+            }, function (err) {
               console.log('Could not retrieve file, error code:', err.code);
             });
           } else if (service.isHtml5) {
@@ -548,17 +552,30 @@
           control.onPlaybackStart();
         };
 
+        control.save = function () {
+          if (!service.isAvailable() || control.status.isRecording || !control.audioModel) {
+            return false;
+          }
+
+          var audioObjId = 'recorded-audio-' + control.id,
+            audioPlayer = document.getElementById(audioObjId),
+            blobUrl = (audioPlayer !== null) ? audioPlayer.src : (window.URL || window.webkitURL).createObjectURL(blob);
+
+          angular.element('<a href="' + blobUrl + '" download></a>')[0].click();
+
+        };
+
         control.isHtml5 = function () {
           return service.isHtml5;
         };
 
-        if(control.autoStart){
-          $timeout(function(){
+        if (control.autoStart) {
+          $timeout(function () {
             control.startRecord();
           }, 1000);
         }
 
-        element.on('$destroy', function(){
+        element.on('$destroy', function () {
           $interval.cancel(timing);
         });
 
@@ -587,6 +604,88 @@
             '</div>';
         },
         controller: RecorderController
+      };
+    }
+  ]);
+
+  ngRecorder.directive('ngAudioRecorderAnalyzer', ['$timeout', 'recorderService',
+    function ($timeout, service) {
+      window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame;
+
+      window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
+
+      return {
+        restrict: 'E',
+        require: '^ngAudioRecorder',
+        template: '<div class="audioRecorder-analyzer">' +
+        '<canvas class="analyzer"></canvas>' +
+        '</div>',
+        link: function (scope, element, attrs, recorder) {
+          var canvasWidth, canvasHeight, rafID, analyserContext, props = service.$html5AudioProps;
+
+          function updateAnalysers(time) {
+
+            if (!analyserContext) {
+              var canvas = element.find("canvas")[0];
+              canvasWidth = canvas.width;
+              canvasHeight = canvas.height;
+              analyserContext = canvas.getContext('2d');
+            }
+
+            // analyzer draw code here
+            {
+              var SPACING = 3;
+              var BAR_WIDTH = 1;
+              var numBars = Math.round(canvasWidth / SPACING);
+              var freqByteData = new Uint8Array(props.analyserNode.frequencyBinCount);
+
+              props.analyserNode.getByteFrequencyData(freqByteData);
+
+              analyserContext.clearRect(0, 0, canvasWidth, canvasHeight);
+              analyserContext.fillStyle = '#F6D565';
+              analyserContext.lineCap = 'round';
+              var multiplier = props.analyserNode.frequencyBinCount / numBars;
+
+              // Draw rectangle for each frequency bin.
+              for (var i = 0; i < numBars; ++i) {
+                var magnitude = 0;
+                var offset = Math.floor(i * multiplier);
+                // gotta sum/average the block, or we miss narrow-bandwidth spikes
+                for (var j = 0; j < multiplier; j++)
+                  magnitude += freqByteData[offset + j];
+                magnitude = magnitude / multiplier;
+                var magnitude2 = freqByteData[i * multiplier];
+                analyserContext.fillStyle = "hsl( " + Math.round((i * 360) / numBars) + ", 100%, 50%)";
+                analyserContext.fillRect(i * SPACING, canvasHeight, BAR_WIDTH, -magnitude);
+              }
+            }
+
+            rafID = window.requestAnimationFrame(updateAnalysers);
+          };
+
+          function cancelAnalyserUpdates() {
+            window.cancelAnimationFrame(rafID);
+            rafID = null;
+          };
+
+          element.on('$destroy', function () {
+            cancelAnalyserUpdates();
+          });
+
+          recorder.onRecordStart = (function (original) {
+            return function () {
+              original.apply();
+              updateAnalysers();
+            };
+          })(recorder.onRecordStart);
+
+          recorder.onRecordComplete = (function (original) {
+            return function () {
+              original.apply();
+              cancelAnalyserUpdates();
+            };
+          })(recorder.onRecordComplete);
+        }
       };
     }
   ]);

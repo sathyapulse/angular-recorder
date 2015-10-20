@@ -95,6 +95,7 @@ The controller exposes the following :
 - `recorder.startRecording()`: starts audio recording, might request permission if the user is yet to grant permission to the application.
 - `recorder.stopRecording()`: stops an ongoing recording and sets the audio model.
 - `recorder.playbackRecording()`: Plays the recorded message if available.
+- `recorder.save()`: Triggers download of the recorded audio file.
 - `(boolean) recorder.status.isRecording`: variable indicating if audio record is in progress.
 - `(boolean) recorder.isHtml5()`: indicates if HTML5 recording is being used.
 - `(boolean | null) recorder.isDenied`: variable indicating if the permission to use audio device was denied. This is set to `null` when permission is yet to be requested.
