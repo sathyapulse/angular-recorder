@@ -418,11 +418,10 @@
 
         //used in NON-Angular Async process
         var scopeApply = function () {
-          if (!$scope.$$phase) {
-            try {
-              $scope.$apply();
-            } catch (e) {
-            }
+          var phase;
+          phase = $scope.$root.$$phase;
+          if (phase !== '$apply' && phase !== '$digest') {
+            return scope.$apply();
           }
         };
 
