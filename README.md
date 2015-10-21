@@ -24,6 +24,23 @@ The Audio recorder is a directive and it can be used as an attribute or an eleme
 
 The general structure is :
 
+```html
+<!-- Somewhere on your page -->
+<script src="/path/to/audio-recorder/lib/html5-recorder.js"></script>
+<script src="/path/to/audio-recorder/lib/flash-recorder.js"></script>
+<script src="/path/to/audio-recorder/audio-recorder.js"></script>
+```
+
+Then add as a dependency to your project:
+
+```JS
+
+angular.module('yourAppName', [
+    //include other dependencies
+    'angularAudioRecorder'
+]);
+```
+
 ```HTML
 <ng-audio-recorder id='audioInput' audio-model='recordedInput'>
   <!-- Start controls, exposed via recorder-->
@@ -87,10 +104,12 @@ This is probably the only component which you will interact with when using this
 - `id`: A unique identifier for your input.
 - `show-player`: Indicates if the audio player should be shown after recording is stopped.
 - `auto-start`: indicates if the recording should be started automatically.
-- `on-record-start`: callback to call when recording is started.
-- `on-record-complete`: callback to call when recording is complete.
-- `on-playback-start`: callback to call when playback is started.
-- `on-playback-complete`: callback to call when playback is completed.
+- `on-record-start`: callback to execute when recording is started.
+- `on-record-complete`: callback to execute when recording is complete.
+- `on-playback-start`: callback to execute when playback is started.
+- `on-playback-complete`: callback to execute when playback is completed.
+- `on-playback-pause`: callback to execute when playback is paused.
+- `on-playback-resume`: callback to execute when playback is resumed after pausing.
 
 ### Controller `ngAudioRecorderController`
 
@@ -101,12 +120,20 @@ The controller exposes the following :
 - `recorder.startRecording()`: starts audio recording, might request permission if the user is yet to grant permission to the application.
 - `recorder.stopRecording()`: stops an ongoing recording and sets the audio model.
 - `recorder.playbackRecording()`: Plays the recorded message if available.
+- `recorder.playbackPause()`: Pauses the playback of recorded message.
+- `recorder.playbackResume()`: Resumes a paused playback of recorded message.
 - `recorder.save()`: Triggers download of the recorded audio file.
-- `(boolean) recorder.status.isRecording`: variable indicating if audio record is in progress.
+- `(object) recorder.status`: A read-only object with status of the record controller. The fields in the status object are:
+    - `(boolean) isRecording`: variable indicating if audio record is in progress.
+    - `(boolean|null) isDenied`: variable indicating if the permission to use audio device was denied. This is set to `null` when permission is yet to be requested.
+    - `(boolean) isPlaying`: variable indicating if playback is in progress.
+    - `(boolean) isPaused`: variable indicating if playback is in Paused.
+    - `(boolean) isStopped`: variable indicating if playback has ended or stopped.
+    - `(enum) playback`: variable indicating status of playback (0 = stopped, 1 = playing, 2 = paused).
 - `(boolean) recorder.isHtml5()`: indicates if HTML5 recording is being used.
-- `(boolean | null) recorder.isDenied`: variable indicating if the permission to use audio device was denied. This is set to `null` when permission is yet to be requested.
 - `(long) recorder.elapsedTime` : The total time elapsed so far while recording, updated every second.
 - `(boolean) recorder.isAvailable`: variable indicating if audio recording is available.
+- `(Media | HTMLAudioElement) recorder.getAudioPlayer()`: returns the underlying audio player.
 
 ### Directive `ngAudioRecorderAnalyzer`
 
