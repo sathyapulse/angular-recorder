@@ -13,7 +13,7 @@
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <ng-audio-recorder id="mainAudio" audio-model="recorded">
+    <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="true">
         <div ng-if="recorder.isAvailable">
 
             <button ng-click="recorder.startRecord()" type="button" ng-disabled="recorder.status.isRecording">
@@ -22,9 +22,9 @@
             <button ng-click="recorder.stopRecord()" type="button" ng-disabled="recorder.status.isRecording === false">
                 Stop Record
             </button>
-            <button ng-click="recorder.playbackRecording()" type="button"
-                    ng-disabled="recorder.status.isRecording || !recorder.audioModel">
-                Play Back
+
+            <button ng-click="recorder.status.isPlaying ? recorder.playbackPause() : recorder.playbackResume()" type="button" ng-disabled="recorder.status.isRecording || !recorder.audioModel">
+                {{recorder.status.isStopped || recorder.status.isPaused ? 'Play' : 'Pause'}}
             </button>
 
             <button ng-click="recorder.save()" ng-disabled="recorder.status.isRecording || !recorder.audioModel">

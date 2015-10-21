@@ -1,6 +1,16 @@
 (function () {
   'use strict'
 
+  var PLAYBACK = {
+    STOPPED: 0,
+    PLAYING: 1,
+    PAUSED: 2
+  };
+
+  window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame;
+
+  window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
+
   /**
    * Created by svenkatesan on 3/10/2015.
    * Modified by JTO
@@ -366,7 +376,7 @@
           forceSwf = value;
           return provider;
         },
-        setSwfUrl: function(path){
+        setSwfUrl: function (path) {
           swfUrl = path;
           return provider;
         }
@@ -383,12 +393,30 @@
 
       var RecorderController = function (element, service, recorderUtils, $scope, $timeout, $interval) {
         var control = this, cordovaMedia = {
-          recorder: null,
-          url: null
-        }, timing = null, audioObjId = 'recorded-audio-' + control.id;
-        ;
+            recorder: null,
+            url: null,
+            player: null
+          }, timing = null,
+          audioObjId = 'recorded-audio-' + control.id,
+          status = {
+            isRecording: false,
+            playback: PLAYBACK.STOPPED,
+            isDenied: null,
+            get isPlaying() {
+              return status.playback === PLAYBACK.PLAYING;
+            },
+            get isStopped() {
+              return status.playback === PLAYBACK.STOPPED;
+            },
+            get isPaused() {
+              return status.playback === PLAYBACK.PAUSED;
+            }
+          };
 
+        control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
+
+        //used in NON-Angular Async process
         var scopeApply = function () {
           if (!$scope.$$phase) {
             try {
@@ -404,26 +432,30 @@
           element.attr("id", control.id);
         }
 
-        control.status = {
-          isRecording: false
-        };
-
-        control.isDenied = null;
         control.elapsedTime = 0;
 
         control.startRecord = function () {
           if (!service.isAvailable()) {
             return;
           }
-          var id = control.id;
-          var recordHandler = service.getHandler();
+
+          if (status.isPlaying) {
+            control.playbackPause();
+            //indicate that this is not paused.
+            status.playback = PLAYBACK.STOPPED;
+          }
+
+          //clear audio previously recorded
+          control.audioModel = null;
+
+          var id = control.id, recordHandler = service.getHandler();
           //Record initiation based on browser type
           var start = function () {
             if (service.isCordova) {
               cordovaMedia.url = recorderUtils.cordovaAudioUrl(control.id);
               //mobile app needs wav extension to save recording
               cordovaMedia.recorder = new Media(cordovaMedia.url, function () {
-                console.log('Media successfully launched');
+                console.log('Media successfully played');
               }, function (err) {
                 console.log('Media could not be launched' + err.code, err);
               });
@@ -447,7 +479,7 @@
               recordHandler.record(id, 'audio.wav');
             }
 
-            control.status.isRecording = true;
+            status.isRecording = true;
             control.onRecordStart(id);
             control.elapsedTime = 0;
             timing = $interval(function () {
@@ -457,22 +489,43 @@
 
           if (service.isCordova || recordHandler) {
             start();
-          } else if (!control.isDenied) {
+          } else if (!status.isDenied) {
             //probably permission was never asked
             service.showPermission({
               onDenied: function () {
-                control.isDenied = true;
+                status.isDenied = true;
                 $scope.$apply();
               },
               onAllowed: function () {
-                control.isDenied = false;
+                status.isDenied = false;
                 recordHandler = service.getHandler();
                 start();
                 scopeApply();
               }
             });
           }
+        };
 
+        var onEnded = function () {
+          status.playback = PLAYBACK.STOPPED;
+          control.onPlaybackComplete(control.id);
+          console.log('PlaybackEnded');
+          scopeApply();
+        };
+
+        var onPause = function () {
+          status.playback = PLAYBACK.PAUSED;
+          control.onPlaybackPause(control.getAudioPlayer());
+        };
+
+        var onStart = function () {
+          status.playback = PLAYBACK.PLAYING;
+          control.onPlaybackStart();
+        };
+
+        var onResume = function () {
+          status.playback = PLAYBACK.PLAYING;
+          control.onPlaybackResume();
         };
 
         var displayPlayback = function (blob) {
@@ -485,9 +538,24 @@
               audioPlayer.setAttribute('controls', '');
             }
 
-            audioPlayer.addEventListener("ended", function onEnded() {
-              control.onPlaybackComplete(control.id);
-              console.log('Playing stopped');
+            audioPlayer.addEventListener("ended", onEnded);
+            audioPlayer.addEventListener("pause", function (e) {
+              if(this.duration !== this.currentTime){
+                console.log('PlaybackPaused');
+                onPause();
+                scopeApply();
+              }
+            });
+
+
+            audioPlayer.addEventListener("playing", function (e) {
+              if (status.isPaused) {
+                console.log('PlaybackResumed');
+                onResume();
+              } else {
+                console.log('PlaybackStarted');
+                onStart();
+              }
               scopeApply();
             });
 
@@ -499,12 +567,12 @@
         };
 
         control.getAudioPlayer = function () {
-          return document.getElementById(audioObjId);
+          return service.isCordova ? cordovaMedia.player : document.getElementById(audioObjId);
         };
 
         control.stopRecord = function () {
           var id = control.id;
-          if (!service.isAvailable() || !control.status.isRecording) {
+          if (!service.isAvailable() || !status.isRecording) {
             return false;
           }
 
@@ -514,7 +582,7 @@
             if (blob) {
               displayPlayback(blob);
             }
-            control.status.isRecording = false;
+            status.isRecording = false;
             control.onRecordComplete(id);
             $interval.cancel(timing);
           };
@@ -548,27 +616,53 @@
         };
 
         control.playbackRecording = function () {
-          if (!service.isAvailable() || control.status.isRecording || !control.audioModel) {
+          if (status.isPlaying || !service.isAvailable() || status.isRecording || !control.audioModel) {
             return false;
           }
 
-
           if (service.isCordova) {
-            var cPlayer = new Media(cordovaMedia.url, function () {
-              control.onPlaybackComplete(control.id);
-              scopeApply();
-            }, function () {
+            cordovaMedia.player = new Media(cordovaMedia.url, onEnded, function () {
               console.log('Playback failed');
             });
-            cPlayer.play();
+            cordovaMedia.player.play();
+            onStart();
           } else {
             control.getAudioPlayer().play();
           }
-          control.onPlaybackStart();
+
         };
 
+        control.playbackPause = function () {
+          if (!status.isPlaying || !service.isAvailable() || status.isRecording || !control.audioModel) {
+            return false;
+          }
+
+          control.getAudioPlayer().pause();
+          if(service.isCordova){
+            onPause();
+          }
+        };
+
+        control.playbackResume = function () {
+          if (status.isPlaying || !service.isAvailable() || status.isRecording || !control.audioModel) {
+            return false;
+          }
+
+          if (status.isPaused) {
+            //previously paused, just resume
+            control.getAudioPlayer().play();
+            if(service.isCordova){
+              onResume();
+            }
+          } else {
+            control.playbackRecording();
+          }
+
+        };
+
+
         control.save = function () {
-          if (!service.isAvailable() || control.status.isRecording || !control.audioModel) {
+          if (!service.isAvailable() || status.isRecording || !control.audioModel) {
             return false;
           }
 
@@ -607,6 +701,8 @@
           onRecordComplete: '&',
           onPlaybackComplete: '&',
           onPlaybackStart: '&',
+          onPlaybackPause: '&',
+          onPlaybackResume: '&',
           showPlayer: '@',
           autoStart: '@'
         },
@@ -625,9 +721,6 @@
 
   ngRecorder.directive('ngAudioRecorderAnalyzer', ['recorderService',
     function (service) {
-      window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame;
-
-      window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
 
       return {
         restrict: 'E',
@@ -729,12 +822,15 @@
           }, opts = angular.extend(defaults, attrs);
 
 
-
           var canvas, data, audioPlayer;
 
           function init() {
             canvas = element.find("canvas")[0];
-            audioPlayer = recorder.getAudioPlayer()
+            audioPlayer = recorder.getAudioPlayer();
+            audioPlayer.addEventListener('seeking', function(){
+              drawBuffer(-2);
+            });
+
           };
 
           function drawBuffer(time) {
@@ -765,13 +861,20 @@
               context.moveTo(x, 2);
               context.lineTo(x, height - 2);
               context.stroke();
-              animId = window.requestAnimationFrame(drawBuffer);
+              if(time !== -2){
+                startAnim();
+              }
+              //console.log('Animation: ' + time);
             }
           };
 
           function cancelAnim() {
             window.cancelAnimationFrame(animId);
             animId = null;
+          };
+
+          function startAnim() {
+            animId = window.requestAnimationFrame(drawBuffer)
           };
 
           function gotBuffers(buffers) {
@@ -786,11 +889,8 @@
             cancelAnim();
           });
 
-          appendActionToCallback(recorder, 'onPlaybackStart', function () {
-            animId = window.requestAnimationFrame(drawBuffer)
-          }, 'waveView');
-
-          appendActionToCallback(recorder, 'onPlaybackComplete', cancelAnim, 'waveView');
+          appendActionToCallback(recorder, 'onPlaybackStart|onPlaybackResume', startAnim, 'waveView');
+          appendActionToCallback(recorder, 'onPlaybackComplete|onPlaybackPause', cancelAnim, 'waveView');
 
           appendActionToCallback(recorder, 'onRecordComplete', function () {
             gotBuffers(recorder.audioBuffer);
@@ -800,29 +900,53 @@
       };
     }]);
 
-  var appendActionToCallback = function (object, callback, action, tracker) {
-    if (!angular.isObject(object) || !angular.isFunction(action) || !(callback in object) || !angular.isFunction(object[callback])) {
-      throw new Error('One or more parameter supplied is not valid');
-    }
-    ;
+  var appendActionToCallback = function (object, callbacks, action, track) {
 
-    if (!('$$appendTrackers' in object)) {
-      object.$$appendTrackers = [];
-    }
+    callbacks.split(/\|/).forEach(function (callback) {
+      if (!angular.isObject(object) || !angular.isFunction(action) || !(callback in object) || !angular.isFunction(object[callback])) {
+        throw new Error('One or more parameter supplied is not valid');
+      }
+      ;
 
-    tracker = callback + '|' + tracker;
-    if (object.$$appendTrackers.indexOf(tracker) > -1) {
-      console.log('Already appended: ', tracker);
-      return;
-    }
+      if (!('$$appendTrackers' in object)) {
+        object.$$appendTrackers = [];
+      }
 
-    object[callback] = (function (original) {
-      return function () {
-        original.apply(object, arguments);
-        action.apply(object, arguments);
-      };
-    })(object[callback]);
+      var tracker = callback + '|' + track;
+      if (object.$$appendTrackers.indexOf(tracker) > -1) {
+        console.log('Already appended: ', tracker);
+        return;
+      }
 
-    object.$$appendTrackers.push(tracker);
+      object[callback] = (function (original) {
+        return function () {
+          //console.trace('Calling Callback : ', tracker);
+          original.apply(object, arguments);
+          action.apply(object, arguments);
+        };
+      })(object[callback]);
+
+      object.$$appendTrackers.push(tracker);
+    });
   };
+
+  var createReadOnlyVersion = function (object) {
+    var obj = {};
+    for (var property in object) {
+      if (object.hasOwnProperty(property)) {
+        Object.defineProperty(obj, property, {
+          get: (function (a) {
+            var p = a;
+            return function () {
+              return object[p];
+            }
+          })(property),
+          enumerable: true,
+          configurable: true
+        });
+      }
+    }
+    return obj;
+  };
+
 })();
