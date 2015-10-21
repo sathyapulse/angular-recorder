@@ -68,6 +68,7 @@
         service = {isHtml5: false, isReady: false},
         permissionHandlers = {onDenied: null, onClosed: null, onAllow: null},
         forceSwf = false,
+        swfUrl = scriptPath + "lib/recorder.swf",
         utils;
 
       var swfHandlerConfig = {
@@ -193,7 +194,7 @@
             'save_text': ''
           };
 
-          swfobject.embedSWF(scriptPath + "lib/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashVars, params, attrs);
+          swfobject.embedSWF(swfUrl, "recorder-content", "0", "0", "11.0.0", "", flashVars, params, attrs);
           //Flash external events initialised when user launches activity
           window.fwr_event_handler = swfHandlerConfig.externalEvents;
           window.configureMicrophone = swfHandlerConfig.configureMic;
@@ -353,7 +354,7 @@
 
       service.$html5AudioProps = html5AudioProps;
 
-      return {
+      var provider = {
         $get: ['recorderUtils',
           function (recorderUtils) {
             utils = recorderUtils;
@@ -363,8 +364,15 @@
         ],
         forceSwf: function (value) {
           forceSwf = value;
+          return provider;
+        },
+        setSwfUrl: function(path){
+          swfUrl = path;
+          return provider;
         }
       };
+
+      return provider;
     }])
   ;
 

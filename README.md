@@ -55,7 +55,10 @@ The following API are exposed to your application.
 
 This is the provider for configuring the `recorderService`.
 
-- `recorderServiceProvider.forceSwf(boolean value)`: This method can be used to force the plugin to use SWF for Audio input.
+- (recorderServiceProvider) `recorderServiceProvider.forceSwf(boolean value)`: This method can be used to force the plugin to use SWF for Audio input.
+
+- (recorderServiceProvider) `recorderServiceProvider.setSwfUrl(string url)`: Sets the URL for the Flash Wave Recorder SWF, should be used only when the SWF is not in the default location.
+
 
 ### Service `recorderService`
 
