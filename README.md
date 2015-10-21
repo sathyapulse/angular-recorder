@@ -75,6 +75,9 @@ The callbacks do not accept any arguments.
 
 ### Directive `ngAudioRecorder`
 
+```html
+<ng-audio-recorder attributes...></ng-audio-recorder>
+```
 This is probably the only component which you will interact with when using this application, it can be used as an element (preffered) or as an attribute. The directive takes in the following attributes:
 
 - `audio-model`: the model within your controller to bind the recorded audio message to. The recorded message is a Blob.
@@ -102,8 +105,29 @@ The controller exposes the following :
 - `(long) recorder.elapsedTime` : The total time elapsed so far while recording, updated every second.
 - `(boolean) recorder.isAvailable`: variable indicating if audio recording is available.
 
+### Directive `ngAudioRecorderAnalyzer`
 
+```html
+<ng-audio-recorder-analyzer></ng-audio-recorder-analyzer>
+```
+This directive displays audio input analysis during recording, [see here](http://webaudiodemos.appspot.com/AudioRecorder/index.html) for example of what an analyzer looks like.  
 
+Please note this directive is only available in HTML5 mode.
+
+### Directive `ngAudioRecorderWaveView`
+
+```html
+<ng-audio-recorder-wave-view attributes></ng-audio-recorder-wave-view>
+```
+This directive displays the wave form of the recorded audio, [see here](http://webaudiodemos.appspot.com/AudioRecorder/index.html) for example of what an the wave form looks like.  
+
+Please note this directive is only available in HTML5 mode.
+
+The following attributes can be specified:
+
+- `wave-color`: The color of the color of the wave form, defaults to `'silver'`.
+- `bar-color`: The color of the current play position bar, defaults to `'green'`
+- `bar-width`: The width in space units of the position bar, defaults to 1.
 
 
 ## Credits
@@ -112,6 +136,7 @@ The controller exposes the following :
  - [RecorderJS](https://github.com/mattdiamond/Recorderjs)
  - [FlashWaveRecorder](https://github.com/michalstocki/FlashWavRecorder)
  - [Cordova Media Plugin](https://github.com/apache/cordova-plugin-media)
+ - [Web Audio Demo](https://github.com/cwilso/AudioRecorder) by [Chris Wilson](https://github.com/cwilso)
 
 
 ## License (MIT)

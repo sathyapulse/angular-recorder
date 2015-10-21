@@ -471,19 +471,22 @@
           var url = (window.URL || window.webkitURL).createObjectURL(blob);
           if (document.getElementById(audioObjId) == null) {
             element.append('<audio src=' + url + ' type="audio/mp3" id="' + audioObjId + '"></audio>');
+
+            var audioPlayer = document.getElementById(audioObjId);
+            if (control.showPlayer) {
+              audioPlayer.setAttribute('controls', '');
+            }
+
+            audioPlayer.addEventListener("ended", function onEnded() {
+              control.onPlaybackComplete(control.id);
+              console.log('Playing stopped');
+              scopeApply();
+            });
+
           } else {
             document.getElementById(audioObjId).src = url;
           }
 
-          var audioPlayer = document.getElementById(audioObjId);
-          if (control.showPlayer) {
-            audioPlayer.setAttribute('controls', '');
-          }
-          audioPlayer.addEventListener("ended", function onEnded() {
-            control.onPlaybackComplete(control.id);
-            console.log('Playing stopped');
-            scopeApply();
-          });
 
         };
 
@@ -651,7 +654,7 @@
               props.analyserNode.getByteFrequencyData(freqByteData);
 
               analyserContext.clearRect(0, 0, canvasWidth, canvasHeight);
-              analyserContext.fillStyle = '#F6D565';
+              //analyserContext.fillStyle = '#F6D565';
               analyserContext.lineCap = 'round';
               var multiplier = props.analyserNode.frequencyBinCount / numBars;
 
@@ -688,12 +691,9 @@
             };
           })(recorder.onRecordStart);
 
-          recorder.onRecordComplete = (function (original) {
-            return function () {
-              original.apply();
-              cancelAnalyserUpdates();
-            };
-          })(recorder.onRecordComplete);
+          appendActionToCallback(recorder, 'onRecordStart', updateAnalysers, 'analyzer');
+          appendActionToCallback(recorder, 'onRecordComplete', cancelAnalyserUpdates, 'analyzer');
+
         }
       };
     }
@@ -714,83 +714,107 @@
             return;
           }
 
-          var animId = null;
-          function gotBuffers(buffers) {
-            var canvas = element.find("canvas")[0],
-              data = buffers[0],
-              context=canvas.getContext('2d'),
-              audioPlayer = recorder.getAudioPlayer()
-              ;
+          var animId = null, canvas, defaults = {
+            waveColor: 'silver',
+            barColor: 'green',
+            barWidth: 1
+          }, opts = angular.extend(defaults, attrs);
 
-            function drawBuffer(time) {
-              var width = canvas.width, height = canvas.height;
-              var step = Math.ceil(data.length / width);
-              var amp = height / 2;
-              context.fillStyle = "silver";
-              context.clearRect(0, 0, width, height);
-              for (var i = 0; i < width; i++) {
-                var min = 1.0;
-                var max = -1.0;
-                for (var j = 0; j < step; j++) {
-                  var datum = data[(i * step) + j];
-                  if (datum < min)
-                    min = datum;
-                  if (datum > max)
-                    max = datum;
-                }
-                context.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
-              }
 
-              if(time !== -1){
-                context.beginPath();
-                var x = (audioPlayer.currentTime / Math.max(1, audioPlayer.duration)) * width;
-                context.strokeStyle = 'black';
-                context.lineWidth = 2;
-                context.moveTo(x, 2);
-                context.lineTo(x, height - 2);
-                context.stroke();
-                animId = window.requestAnimationFrame(drawBuffer);
-                console.log('Animated: '+ time);
-              }
-            };
 
-            function cancelAnim(){
-              window.cancelAnimationFrame(animId);
-              animId = null;
-            };
-            drawBuffer(-1);
+          var canvas, data, audioPlayer;
 
-            recorder.onPlaybackStart = (function (original) {
-              return function () {
-                original.apply();
-                //start animation
-                animId = window.requestAnimationFrame(drawBuffer);
-              };
-            })(recorder.onPlaybackStart);
-
-            recorder.onPlaybackComplete = (function (original) {
-              return function () {
-                original.apply();
-                cancelAnim();
-              };
-            })(recorder.onPlaybackComplete);
-
-            element.on('$destroy', function(){
-              cancelAnim();
-            });
+          function init() {
+            canvas = element.find("canvas")[0];
+            audioPlayer = recorder.getAudioPlayer()
           };
 
+          function drawBuffer(time) {
+            var context = canvas.getContext('2d');
+            var width = canvas.width, height = canvas.height;
+            var step = Math.ceil(data.length / width);
+            var amp = height / 2;
+            context.fillStyle = opts.waveColor;
+            context.clearRect(0, 0, width, height);
+            for (var i = 0; i < width; i++) {
+              var min = 1.0;
+              var max = -1.0;
+              for (var j = 0; j < step; j++) {
+                var datum = data[(i * step) + j];
+                if (datum < min)
+                  min = datum;
+                if (datum > max)
+                  max = datum;
+              }
+              context.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+            }
 
+            if (time !== -1) {
+              context.beginPath();
+              var x = (audioPlayer.currentTime / Math.max(1, audioPlayer.duration)) * width;
+              context.strokeStyle = opts.barColor;
+              context.lineWidth = opts.barWidth;
+              context.moveTo(x, 2);
+              context.lineTo(x, height - 2);
+              context.stroke();
+              animId = window.requestAnimationFrame(drawBuffer);
+            }
+          };
 
-          recorder.onRecordComplete = (function (original) {
-            return function () {
-              original.apply();
-              gotBuffers(recorder.audioBuffer);
-            };
-          })(recorder.onRecordComplete);
+          function cancelAnim() {
+            window.cancelAnimationFrame(animId);
+            animId = null;
+          };
+
+          function gotBuffers(buffers) {
+            if (!canvas) {
+              init();
+            }
+            data = buffers[0];
+            drawBuffer(-1);
+          };
+
+          element.on('$destroy', function () {
+            cancelAnim();
+          });
+
+          appendActionToCallback(recorder, 'onPlaybackStart', function () {
+            animId = window.requestAnimationFrame(drawBuffer)
+          }, 'waveView');
+
+          appendActionToCallback(recorder, 'onPlaybackComplete', cancelAnim, 'waveView');
+
+          appendActionToCallback(recorder, 'onRecordComplete', function () {
+            gotBuffers(recorder.audioBuffer);
+          }, 'waveView');
 
         }
       };
     }]);
 
+  var appendActionToCallback = function (object, callback, action, tracker) {
+    if (!angular.isObject(object) || !angular.isFunction(action) || !(callback in object) || !angular.isFunction(object[callback])) {
+      throw new Error('One or more parameter supplied is not valid');
+    }
+    ;
+
+    if (!('$$appendTrackers' in object)) {
+      object.$$appendTrackers = [];
+    }
+
+    tracker = callback + '|' + tracker;
+    if (object.$$appendTrackers.indexOf(tracker) > -1) {
+      console.log('Already appended: ', tracker);
+      return;
+    }
+
+    object[callback] = (function (original) {
+      return function () {
+        original.apply(object, arguments);
+        action.apply(object, arguments);
+      };
+    })(object[callback]);
+
+    object.$$appendTrackers.push(tracker);
+  };
 })();
