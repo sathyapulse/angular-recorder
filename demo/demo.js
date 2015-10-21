@@ -8,7 +8,7 @@
     console.log("Loaded");
 
   }).config(function(recorderServiceProvider){
-      recorderServiceProvider.forceSwf(false);
+      recorderServiceProvider.forceSwf(true);
     });
 
 })();
