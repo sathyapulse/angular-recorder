@@ -16,7 +16,11 @@
     <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="true">
         <div ng-if="recorder.isAvailable">
 
-            <button ng-click="recorder.startRecord()" type="button" ng-disabled="recorder.status.isRecording">
+            <div ng-if="recorder.status.isDenied === true" style="color: red;">
+                You need to grant permission for this application to USE your microphone.
+            </div>
+            <button ng-click="recorder.startRecord()" type="button"
+                    ng-disabled="recorder.status.isDenied === true || recorder.status.isRecording">
                 Start Record
             </button>
             <button ng-click="recorder.stopRecord()" type="button" ng-disabled="recorder.status.isRecording === false">
@@ -31,11 +35,11 @@
                  Download
             </button>
 
-            <div ng-show="recorder.status.isRecording">
+            <div ng-show="recorder.isHtml5 && recorder.status.isRecording">
                 <ng-audio-recorder-analyzer></ng-audio-recorder-analyzer>
             </div>
             <br/>
-            <div ng-show="!recorder.status.isRecording && recorder.audioModel">
+            <div ng-show="recorder.isHtml5 &&  !recorder.status.isRecording && recorder.audioModel">
                 <ng-audio-recorder-wave-view wave-color="yellow" bar-color="red"></ng-audio-recorder-wave-view>
             </div>
             <br/>

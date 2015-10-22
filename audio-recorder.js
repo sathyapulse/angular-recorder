@@ -421,7 +421,7 @@
           var phase;
           phase = $scope.$root.$$phase;
           if (phase !== '$apply' && phase !== '$digest') {
-            return scope.$apply();
+            return $scope.$apply();
           }
         };
 
@@ -528,9 +528,8 @@
         };
 
         var displayPlayback = function (blob) {
-          var url = (window.URL || window.webkitURL).createObjectURL(blob);
           if (document.getElementById(audioObjId) == null) {
-            element.append('<audio src=' + url + ' type="audio/mp3" id="' + audioObjId + '"></audio>');
+            element.append('<audio type="audio/mp3" id="' + audioObjId + '"></audio>');
 
             var audioPlayer = document.getElementById(audioObjId);
             if (control.showPlayer) {
@@ -558,9 +557,11 @@
               scopeApply();
             });
 
-          } else {
-            document.getElementById(audioObjId).src = url;
           }
+
+          blobToDataURL(blob, function(url){
+            document.getElementById(audioObjId).src = url;
+          });
 
 
         };
@@ -577,13 +578,13 @@
 
           var recordHandler = service.getHandler();
           var completed = function (blob) {
+            $interval.cancel(timing);
             control.audioModel = blob;
             if (blob) {
               displayPlayback(blob);
             }
             status.isRecording = false;
             control.onRecordComplete(id);
-            $interval.cancel(timing);
           };
 
           //To stop recording
@@ -946,6 +947,12 @@
       }
     }
     return obj;
+  };
+
+  var blobToDataURL = function(blob, callback) {
+    var a = new FileReader();
+    a.onload = function(e) {callback(e.target.result);}
+    a.readAsDataURL(blob);
   };
 
 })();
