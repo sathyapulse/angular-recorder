@@ -479,7 +479,7 @@
             }
 
             status.isRecording = true;
-            control.onRecordStart(id);
+            control.onRecordStart();
             control.elapsedTime = 0;
             timing = $interval(function () {
               ++control.elapsedTime;
@@ -507,14 +507,14 @@
 
         var onEnded = function () {
           status.playback = PLAYBACK.STOPPED;
-          control.onPlaybackComplete(control.id);
+          control.onPlaybackComplete();
           console.log('PlaybackEnded');
           scopeApply();
         };
 
         var onPause = function () {
           status.playback = PLAYBACK.PAUSED;
-          control.onPlaybackPause(control.getAudioPlayer());
+          control.onPlaybackPause();
         };
 
         var onStart = function () {
@@ -584,7 +584,7 @@
               displayPlayback(blob);
             }
             status.isRecording = false;
-            control.onRecordComplete(id);
+            control.onRecordComplete();
           };
 
           //To stop recording
@@ -726,7 +726,7 @@
         restrict: 'E',
         require: '^ngAudioRecorder',
         template: '<div ng-if="!hide" class="audioRecorder-analyzer">' +
-        '<canvas class="analyzer"></canvas>' +
+        '<canvas class="analyzer" width="1200" height="400" style="max-width: 100%;"></canvas>' +
         '</div>',
         link: function (scope, element, attrs, recorder) {
           if (!service.isHtml5) {
@@ -807,7 +807,7 @@
         restrict: 'E',
         require: '^ngAudioRecorder',
         template: '<div ng-if="!hide" class="audioRecorder-waveView">' +
-        '<canvas class="waveview"></canvas>' +
+        '<canvas class="waveview" width="1200" height="400" style="max-width: 100%;"></canvas>' +
         '</div>',
         link: function (scope, element, attrs, recorder) {
           if (!service.isHtml5) {
