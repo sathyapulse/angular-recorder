@@ -329,6 +329,16 @@
         }
       };
 
+      var controllers = {};
+
+      service.controller = function(id){
+        return controllers[id];
+      };
+
+      service.setController = function(id, controller){
+        controllers[id] = controller;
+      };
+
       service.isAvailable = function () {
         if (service.isCordova) {
           if (!('Media' in window)) {
@@ -430,6 +440,9 @@
           control.id = recorderUtils.generateUuid();
           element.attr("id", control.id);
         }
+
+        //register controller with service
+        service.setController(control.id, this);
 
         control.elapsedTime = 0;
 

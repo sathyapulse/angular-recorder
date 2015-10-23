@@ -90,6 +90,7 @@ This service is used internally by the directive, even though it's exposed to yo
     * onAllowed: callback to call when user grants permission.
     * onDenied: callback to call when user denies permission.
     * onClosed: callback to call when a user closes the permission window (Flash).
+- `(ngAudioRecorderController) recorderService.controller(id : sting)`: returns the controller for the recorder with the specified ID. The ID is the ID attribute of the element with the `ng-audio-recorder` directive on it.
 
 The callbacks do not accept any arguments.
 
