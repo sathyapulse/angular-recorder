@@ -413,6 +413,7 @@
             isRecording: false,
             playback: PLAYBACK.STOPPED,
             isDenied: null,
+            isSwfLoaded: null,
             get isPlaying() {
               return status.playback === PLAYBACK.PLAYING;
             },
@@ -428,11 +429,11 @@
         control.isAvailable = service.isAvailable();
 
         if(!service.isHtml5 && !service.isCordova){
-          control.isSwfLoaded = service.swfIsLoaded();
+          status.isSwfLoaded = service.swfIsLoaded();
           $scope.$watch(function(){
             service.swfIsLoaded();
           }, function(n){
-            control.isSwfLoaded = n;
+            status.isSwfLoaded = n;
           });
         }
 
@@ -730,7 +731,7 @@
         bindToController: true,
         template: function (element, attrs) {
           return '<div class="audioRecorder">' +
-            '<div id="audioRecorder-fwrecorder"></div>' +
+            '<div style="width: 250px; margin: 0 auto;"><div id="audioRecorder-fwrecorder"></div></div>' +
             element.html() +
             '</div>';
         },
