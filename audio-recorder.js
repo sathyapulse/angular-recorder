@@ -78,7 +78,7 @@
         service = {isHtml5: false, isReady: false},
         permissionHandlers = {onDenied: null, onClosed: null, onAllow: null},
         forceSwf = false,
-        swfUrl = FWRecorder.getRecorderDataUrl(),
+        swfUrl = scriptPath + 'lib/recorder.swf',
         utils;
 
       var swfHandlerConfig = {
@@ -428,11 +428,11 @@
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
 
-        if(!service.isHtml5 && !service.isCordova){
+        if (!service.isHtml5 && !service.isCordova) {
           status.isSwfLoaded = service.swfIsLoaded();
-          $scope.$watch(function(){
-            service.swfIsLoaded();
-          }, function(n){
+          $scope.$watch(function () {
+            return service.swfIsLoaded();
+          }, function (n) {
             status.isSwfLoaded = n;
           });
         }
@@ -736,16 +736,20 @@
             '</div>';
         },
         controller: RecorderController,
-        link: function (scope, element) {
+        link: function (scope, element, attrs) {
           $timeout(function () {
-            var params = {}, attrs = {
-              'id': 'recorder-app',
-              'name': 'recorder-app'
-            }, flashVars = {
-              'save_text': ''
-            };
-            swfobject.embedSWF(recorderService.getSwfUrl(), "audioRecorder-fwrecorder", "0", "0", "11.0.0", "", flashVars, params, attrs);
-          }, 500);
+            if (recorderService.isAvailable && !(recorderService.isHtml5 || recorderService.isCordova)) {
+              var params = {
+                'allowscriptaccess': 'always'
+              }, attrs = {
+                'id': 'recorder-app',
+                'name': 'recorder-app'
+              }, flashVars = {
+                'save_text': ''
+              };
+              swfobject.embedSWF(recorderService.getSwfUrl(), "audioRecorder-fwrecorder", "0", "0", "11.0.0", "", flashVars, params, attrs);
+            }
+          }, 100);
 
         }
       };
@@ -989,5 +993,6 @@
     }
     a.readAsDataURL(blob);
   };
+
 
 })();
