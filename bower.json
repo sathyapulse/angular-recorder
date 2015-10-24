@@ -15,7 +15,6 @@
   "main": [
     "lib/flash-recorder.js",
     "lib/html5-recorder.js",
-    "lib/recorder.swf",
     "audio-recorder.js"
   ]
 }

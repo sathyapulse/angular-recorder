@@ -78,7 +78,7 @@
         service = {isHtml5: false, isReady: false},
         permissionHandlers = {onDenied: null, onClosed: null, onAllow: null},
         forceSwf = false,
-        swfUrl = scriptPath + "lib/recorder.swf",
+        swfUrl = FWRecorder.getRecorderDataUrl(),
         utils;
 
       var swfHandlerConfig = {
