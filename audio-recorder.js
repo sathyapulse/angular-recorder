@@ -83,6 +83,7 @@
 
       var swfHandlerConfig = {
         isAvailable: false,
+        loaded: false,
         configureMic: function () {
           if (!FWRecorder.isReady) {
             return;
@@ -102,6 +103,7 @@
               FWRecorder.connect('recorder-app', 0);
               FWRecorder.recorderOriginalWidth = 1;
               FWRecorder.recorderOriginalHeight = 1;
+              swfHandlerConfig.loaded = true;
               break;
 
             case "microphone_user_request":
@@ -196,16 +198,7 @@
             return;
           }
           swfHandlerConfig.isAvailable = true;
-          //Embedding flash object
-          var params = {}, attrs = {
-            'id': 'recorder-app',
-            'name': 'recorder-app'
-          }, flashVars = {
-            'save_text': ''
-          };
-
-          swfobject.embedSWF(swfUrl, "recorder-content", "0", "0", "11.0.0", "", flashVars, params, attrs);
-          //Flash external events initialised when user launches activity
+          //handlers
           window.fwr_event_handler = swfHandlerConfig.externalEvents;
           window.configureMicrophone = swfHandlerConfig.configureMic;
         },
@@ -331,11 +324,15 @@
 
       var controllers = {};
 
-      service.controller = function(id){
+      service.controller = function (id) {
         return controllers[id];
       };
 
-      service.setController = function(id, controller){
+      service.getSwfUrl = function () {
+        return swfUrl;
+      };
+
+      service.setController = function (id, controller) {
         controllers[id] = controller;
       };
 
@@ -372,6 +369,10 @@
         }
       };
 
+      service.swfIsLoaded = function () {
+        return swfHandlerConfig.loaded;
+      };
+
       service.$html5AudioProps = html5AudioProps;
 
       var provider = {
@@ -398,8 +399,8 @@
 
 
 // Creates recorder builder
-  ngRecorder.directive('ngAudioRecorder', [
-    function () {
+  ngRecorder.directive('ngAudioRecorder', ['recorderService', '$timeout',
+    function (recorderService, $timeout) {
 
       var RecorderController = function (element, service, recorderUtils, $scope, $timeout, $interval) {
         var control = this, cordovaMedia = {
@@ -425,6 +426,15 @@
 
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
+
+        if(!service.isHtml5 && !service.isCordova){
+          control.isSwfLoaded = service.swfIsLoaded();
+          $scope.$watch(function(){
+            service.swfIsLoaded();
+          }, function(n){
+            control.isSwfLoaded = n;
+          });
+        }
 
         //used in NON-Angular Async process
         var scopeApply = function () {
@@ -551,7 +561,7 @@
 
             audioPlayer.addEventListener("ended", onEnded);
             audioPlayer.addEventListener("pause", function (e) {
-              if(this.duration !== this.currentTime){
+              if (this.duration !== this.currentTime) {
                 console.log('PlaybackPaused');
                 onPause();
                 scopeApply();
@@ -572,7 +582,7 @@
 
           }
 
-          blobToDataURL(blob, function(url){
+          blobToDataURL(blob, function (url) {
             document.getElementById(audioObjId).src = url;
           });
 
@@ -651,7 +661,7 @@
           }
 
           control.getAudioPlayer().pause();
-          if(service.isCordova){
+          if (service.isCordova) {
             onPause();
           }
         };
@@ -664,7 +674,7 @@
           if (status.isPaused) {
             //previously paused, just resume
             control.getAudioPlayer().play();
-            if(service.isCordova){
+            if (service.isCordova) {
               onResume();
             }
           } else {
@@ -679,10 +689,7 @@
             return false;
           }
 
-          var audioPlayer = control.getAudioPlayer(),
-            blobUrl = (audioPlayer !== null) ? audioPlayer.src :
-              (window.URL || window.webkitURL).createObjectURL(blob);
-
+          var blobUrl = (window.URL || window.webkitURL).createObjectURL(control.audioModel);
           angular.element('<a href="' + blobUrl + '" download></a>')[0].click();
 
         };
@@ -723,11 +730,23 @@
         bindToController: true,
         template: function (element, attrs) {
           return '<div class="audioRecorder">' +
-            '<div id="recorder-content"></div>' +
+            '<div id="audioRecorder-fwrecorder"></div>' +
             element.html() +
             '</div>';
         },
-        controller: RecorderController
+        controller: RecorderController,
+        link: function (scope, element) {
+          $timeout(function () {
+            var params = {}, attrs = {
+              'id': 'recorder-app',
+              'name': 'recorder-app'
+            }, flashVars = {
+              'save_text': ''
+            };
+            swfobject.embedSWF(recorderService.getSwfUrl(), "audioRecorder-fwrecorder", "0", "0", "11.0.0", "", flashVars, params, attrs);
+          }, 500);
+
+        }
       };
     }
   ]);
@@ -840,7 +859,7 @@
           function init() {
             canvas = element.find("canvas")[0];
             audioPlayer = recorder.getAudioPlayer();
-            audioPlayer.addEventListener('seeking', function(){
+            audioPlayer.addEventListener('seeking', function () {
               drawBuffer(-2);
             });
 
@@ -874,7 +893,7 @@
               context.moveTo(x, 2);
               context.lineTo(x, height - 2);
               context.stroke();
-              if(time !== -2){
+              if (time !== -2) {
                 startAnim();
               }
               //console.log('Animation: ' + time);
@@ -962,9 +981,11 @@
     return obj;
   };
 
-  var blobToDataURL = function(blob, callback) {
+  var blobToDataURL = function (blob, callback) {
     var a = new FileReader();
-    a.onload = function(e) {callback(e.target.result);}
+    a.onload = function (e) {
+      callback(e.target.result);
+    }
     a.readAsDataURL(blob);
   };
 
