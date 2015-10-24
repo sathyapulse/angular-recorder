@@ -8,7 +8,9 @@
     console.log("Loaded");
 
   }).config(function(recorderServiceProvider){
-      recorderServiceProvider.forceSwf(true);
+      recorderServiceProvider.forceSwf(false)
+        //.setSwfUrl('/lib/recorder.swf')
+      ;
     });
 
 })();

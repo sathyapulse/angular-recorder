@@ -843,12 +843,12 @@
       return {
         restrict: 'E',
         require: '^ngAudioRecorder',
-        template: '<div ng-if="!hide" class="audioRecorder-waveView">' +
+        template: '<div ng-if="!hideWaveView" class="audioRecorder-waveView">' +
         '<canvas class="waveview" width="1200" height="400" style="max-width: 100%;"></canvas>' +
         '</div>',
         link: function (scope, element, attrs, recorder) {
           if (!service.isHtml5) {
-            scope.hide = true;
+            scope.hideWaveView = true;
             return;
           }
 
