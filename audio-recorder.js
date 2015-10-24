@@ -628,7 +628,7 @@
             recordHandler.stop();
             recordHandler.getBuffers(function (audioBuffer) {
               control.audioBuffer = audioBuffer;
-              recordHandler.exportWAV(function (blob) {
+              recordHandler.exportMonoWAV(function (blob) {
                 completed(blob);
                 scopeApply();
               });
