@@ -1,3 +1,7 @@
+/**
+ * Created by svenkatesan on 3/10/2015.
+ * Modified by JTO
+ */
 (function () {
   'use strict'
 
@@ -7,14 +11,13 @@
     PAUSED: 2
   };
 
-  window.cancelAnimationFrame = window.cancelAnimationFrame || window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame;
+  window.cancelAnimationFrame = window.cancelAnimationFrame ||
+    window.webkitCancelAnimationFrame ||
+    window.mozCancelAnimationFrame;
 
-  window.requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
-
-  /**
-   * Created by svenkatesan on 3/10/2015.
-   * Modified by JTO
-   */
+  window.requestAnimationFrame = window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame;
 
 // Creates recorder module for HTML5 & Flash
   var ngRecorder = angular.module('angularAudioRecorder', [])
