@@ -632,13 +632,19 @@
             recordHandler.getBuffers(function (audioBuffer) {
               control.audioBuffer = audioBuffer;
               recordHandler.exportMonoWAV(function (blob) {
-                completed(blob);
-                scopeApply();
+                MP3Converter(blob, function(mp3Blob){
+                  completed(mp3Blob);
+                  scopeApply();
+                });
               });
             });
           } else {
             recordHandler.stopRecording(id);
-            completed(recordHandler.getBlob(id));
+            //completed(recordHandler.getBlob(id));
+            MP3Converter(recordHandler.getBlob(id), function(mp3Blob){
+              completed(mp3Blob);
+              scopeApply();
+            });
           }
         };
 
