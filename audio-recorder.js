@@ -90,8 +90,6 @@
         mp3Config = {bitRate: 92, lameJsUrl: scriptPath + 'lib/lame.min.js'}
         ;
 
-      console.log(scriptPath);
-
       var swfHandlerConfig = {
         isAvailable: false,
         loaded: false,
@@ -450,9 +448,11 @@
               return status.playback === PLAYBACK.PAUSED;
             }
           },
-          shouldConvertToMp3 = ('convertMp3' in control) ? !!control.convertMp3 : service.shouldConvertToMp3(),
+          shouldConvertToMp3 = angular.isDefined(control.convertMp3) ? !!control.convertMp3 : service.shouldConvertToMp3(),
           mp3Converter = shouldConvertToMp3 ? new MP3Converter(service.getMp3Config()) : null;
         ;
+
+        console.log(control);
 
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
@@ -779,8 +779,9 @@
           onPlaybackResume: '&',
           onConversionStart: '&',
           onConversionComplete: '&',
-          showPlayer: '@',
-          autoStart: '@'
+          showPlayer: '=',
+          autoStart: '=',
+          convertMp3: '='
         },
         controllerAs: 'recorder',
         bindToController: true,
