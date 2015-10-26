@@ -3,9 +3,11 @@
 <head>
     <title>Demo for Audio Recorder</title>
     <script src="../bower_components/angular/angular.min.js"></script>
+    <script src="../bower_components/wavesurfer.js/dist/wavesurfer.min.js"></script>
     <script src="../audio-recorder.js"></script>
     <script src="../lib/html5-recorder.js"></script>
     <script src="../lib/flash-recorder.js"></script>
+
     <script src="demo.js"></script>
 </head>
 
@@ -13,7 +15,7 @@
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="true">
+    <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="false">
         <div ng-if="recorder.isAvailable">
 
             <div ng-if="recorder.status.isDenied === true" style="color: red;">
@@ -46,7 +48,7 @@
                 </div>
                 <br/>
 
-                <div ng-show="recorder.isHtml5 &&  !recorder.status.isRecording && recorder.audioModel">
+                <div ng-show="!recorder.status.isRecording && recorder.audioModel">
                     <ng-audio-recorder-wave-view wave-color="yellow" bar-color="red"></ng-audio-recorder-wave-view>
                 </div>
             </div>

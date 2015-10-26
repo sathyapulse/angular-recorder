@@ -8,9 +8,8 @@
     console.log("Loaded");
 
   }).config(function(recorderServiceProvider){
-      recorderServiceProvider.forceSwf(false)
+      recorderServiceProvider.forceSwf(true)
         //.setSwfUrl('/lib/recorder.swf')
-
         .withMp3Conversion(true)
       ;
     });

@@ -5,7 +5,8 @@
   "description": "AngularJS audio recorder supporting Cordova Media, HTML5 and Flash, forked from https://github.com/sathyapulse/angular-recorder",
   "license": "MIT",
   "dependencies": {
-    "angular": "1.4.x"
+    "angular": "1.4.x",
+    "wavesurfer.js": "~1.0.45"
   },
   "ignore": [
     "bower_components",

@@ -191,7 +191,7 @@
             case "microphone_activity":
             case "observing_level_stopped":
             default:
-              console.log('Event Received: ', arguments);
+              //console.log('Event Received: ', arguments);
               break;
           }
 
@@ -282,7 +282,6 @@
 
         },
         failStream: function (data) {
-          console.log(data);
           if (angular.isDefined(permissionHandlers.onDenied)) {
             permissionHandlers.onDenied();
           }
@@ -452,8 +451,6 @@
           mp3Converter = shouldConvertToMp3 ? new MP3Converter(service.getMp3Config()) : null;
         ;
 
-        console.log(control);
-
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
         control.elapsedTime = 0;
@@ -480,7 +477,6 @@
         var playbackOnEnded = function () {
           status.playback = PLAYBACK.STOPPED;
           control.onPlaybackComplete();
-          console.log('PlaybackEnded');
           scopeApply();
         };
 
@@ -511,7 +507,6 @@
             audioPlayer.addEventListener("ended", playbackOnEnded);
             audioPlayer.addEventListener("pause", function (e) {
               if (this.duration !== this.currentTime) {
-                console.log('PlaybackPaused');
                 playbackOnPause();
                 scopeApply();
               }
@@ -520,10 +515,8 @@
 
             audioPlayer.addEventListener("playing", function (e) {
               if (status.isPaused) {
-                console.log('PlaybackResumed');
                 playbackOnResume();
               } else {
-                console.log('PlaybackStarted');
                 playbackOnStart();
               }
               scopeApply();
@@ -531,7 +524,7 @@
 
           }
 
-          if(blob){
+          if (blob) {
             blobToDataURL(blob, function (url) {
               document.getElementById(audioObjId).src = url;
             });
@@ -587,6 +580,7 @@
               }, function (err) {
                 console.log('Media could not be launched' + err.code, err);
               });
+              console.log('CordovaRecording');
               cordovaMedia.recorder.startRecord();
             }
             else if (service.isHtml5) {
@@ -594,7 +588,7 @@
               if (!recordHandler) {
                 return;
               }
-              console.log('HTML5 Recording');
+              console.log('HTML5Recording');
               recordHandler.clear();
               recordHandler.record();
             }
@@ -604,6 +598,7 @@
                 //Stop recording if the flash object is not ready
                 return;
               }
+              console.log('FlashRecording');
               recordHandler.record(id, 'audio.wav');
             }
 
@@ -671,8 +666,7 @@
             });
           } else if (service.isHtml5) {
             recordHandler.stop();
-            recordHandler.getBuffer(function (audioBuffer) {
-              control.audioBuffer = audioBuffer;
+            recordHandler.getBuffer(function () {
               recordHandler.exportWAV(function (blob) {
                 completed(blob);
                 scopeApply();
@@ -742,6 +736,7 @@
           var blobUrl = (window.URL || window.webkitURL).createObjectURL(control.audioModel);
           var a = document.createElement('a');
           a.href = blobUrl;
+          a.target = '_blank';
           a.download = fileName;
           var click = document.createEvent("Event");
           click.initEvent("click", true, true);
@@ -898,96 +893,41 @@
       return {
         restrict: 'E',
         require: '^ngAudioRecorder',
-        template: '<div ng-if="!hideWaveView" class="audioRecorder-waveView">' +
-        '<canvas class="waveview" width="1200" height="400" style="max-width: 100%;"></canvas>' +
-        '</div>',
-        link: function (scope, element, attrs, recorder) {
-          if (!service.isHtml5) {
-            scope.hideWaveView = true;
-            return;
+        link: function (scope, $element, attrs, recorder) {
+          if (!window.WaveSurfer) {
+            console.warn('WaveSurfer was found.');
           }
 
-          var animId = null, canvas, defaults = {
-            waveColor: 'silver',
-            barColor: 'green',
-            barWidth: 1
-          }, opts = angular.extend(defaults, attrs);
-
-
-          var canvas, data, audioPlayer;
-
-          function init() {
-            canvas = element.find("canvas")[0];
-            audioPlayer = recorder.getAudioPlayer();
-            audioPlayer.addEventListener('seeking', function () {
-              drawBuffer(-2);
-            });
-
-          };
-
-          function drawBuffer(time) {
-            var context = canvas.getContext('2d');
-            var width = canvas.width, height = canvas.height;
-            var step = Math.ceil(data.length / width);
-            var amp = height / 2;
-            context.fillStyle = opts.waveColor;
-            context.clearRect(0, 0, width, height);
-            for (var i = 0; i < width; i++) {
-              var min = 1.0;
-              var max = -1.0;
-              for (var j = 0; j < step; j++) {
-                var datum = data[(i * step) + j];
-                if (datum < min)
-                  min = datum;
-                if (datum > max)
-                  max = datum;
-              }
-              context.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
-            }
-
-            if (time !== -1) {
-              context.beginPath();
-              var x = (audioPlayer.currentTime / Math.max(1, audioPlayer.duration)) * width;
-              context.strokeStyle = opts.barColor;
-              context.lineWidth = opts.barWidth;
-              context.moveTo(x, 2);
-              context.lineTo(x, height - 2);
-              context.stroke();
-              if (time !== -2) {
-                startAnim();
-              }
-              //console.log('Animation: ' + time);
-            }
-          };
-
-          function cancelAnim() {
-            window.cancelAnimationFrame(animId);
-            animId = null;
-          };
-
-          function startAnim() {
-            animId = window.requestAnimationFrame(drawBuffer)
-          };
-
-          function gotBuffers(buffers) {
-            if (!canvas) {
-              init();
-            }
-            data = buffers[0];
-            drawBuffer(-1);
-          };
-
-          element.on('$destroy', function () {
-            cancelAnim();
-          });
-
-          appendActionToCallback(recorder, 'onPlaybackStart|onPlaybackResume', startAnim, 'waveView');
-          appendActionToCallback(recorder, 'onPlaybackComplete|onPlaybackPause', cancelAnim, 'waveView');
-
-          appendActionToCallback(recorder, 'onRecordComplete', function () {
-            gotBuffers(recorder.audioBuffer);
+          var audioPlayer;
+          $element.html('<div class="waveSurfer"></div>');
+          var options = angular.extend({container: $element.find('div')[0]}, attrs);
+          var waveSurfer = WaveSurfer.create(options);
+          waveSurfer.setVolume(0);
+          appendActionToCallback(recorder, 'onPlaybackStart|onPlaybackResume', function () {
+            waveSurfer.play();
+          }, 'waveView');
+          appendActionToCallback(recorder, 'onPlaybackComplete|onPlaybackPause', function () {
+            waveSurfer.pause();
           }, 'waveView');
 
+          appendActionToCallback(recorder, 'onRecordComplete', function () {
+            if(!audioPlayer){
+              audioPlayer = recorder.getAudioPlayer();
+              audioPlayer.addEventListener('seeking', function(e){
+                var progress = audioPlayer.currentTime / audioPlayer.duration;
+                waveSurfer.seekTo(progress);
+              });
+            }
+          }, 'waveView');
+
+
+          scope.$watch(function () {
+            return recorder.audioModel;
+          }, function (newBlob) {
+            if (newBlob instanceof Blob) {
+              waveSurfer.loadBlob(newBlob);
+            }
+          });
         }
       };
     }]);

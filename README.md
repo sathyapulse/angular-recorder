@@ -6,6 +6,8 @@ This is an AngularJS plugin for recording audio input. The directive uses one of
 
 This plugin also has the ability to convert the resulting Wave audio file into MP3. This is made optional for MPEG license reasons.
 
+Wave for the resulting audio is displayed using [wavesurfer.js](https://github.com/katspaugh/wavesurfer.js)
+
 ## Installation
 
 To install via Bower, simply do the following:
@@ -31,12 +33,13 @@ The general structure is :
 <script src="/path/to/audio-recorder/lib/html5-recorder.js"></script>
 <script src="/path/to/audio-recorder/lib/flash-recorder.js"></script>
 <script src="/path/to/audio-recorder/audio-recorder.js"></script>
+<!--- use if you want wave display !-->
+<script src="/path/to/wavesurfer/wavesurfer.min.js"></script>
 ```
 
 Then add as a dependency to your project:
 
 ```JS
-
 angular.module('yourAppName', [
     //include other dependencies
     'angularAudioRecorder'
@@ -186,15 +189,13 @@ Please note this directive is only available in HTML5 mode.
 ```html
 <ng-audio-recorder-wave-view attributes></ng-audio-recorder-wave-view>
 ```
-This directive displays the wave form of the recorded audio, [see here](http://webaudiodemos.appspot.com/AudioRecorder/index.html) for example of what an the wave form looks like.  
+This directive displays the waveform of the recorded audio, using [wavesurfer.js](https://github.com/katspaugh/wavesurfer.js)
 
-Please note this directive is only available in HTML5 mode.
+The options for initializing the WaveSurfer object can be passed in as attributes of the `ng-audio-recorder-wave-view`.
 
-The following attributes can be specified:
+For details of the options available when initializing WaveSurfer, [see here](https://github.com/katspaugh/wavesurfer.js/blob/master/README.md#user-content-wavesurfer-options)
 
-- `wave-color`: The color of the color of the wave form, defaults to `'silver'`.
-- `bar-color`: The color of the current play position bar, defaults to `'green'`
-- `bar-width`: The width in space units of the position bar, defaults to 1.
+Since attributes passed to AngularJS directives are normalized, you should pass the options as dash delimited, as an example `barWidth` should be passed `bar-width`.
 
 
 ## Credits
@@ -206,6 +207,7 @@ The following attributes can be specified:
  - [FlashWaveRecorder](https://github.com/michalstocki/FlashWavRecorder)
  - [Cordova Media Plugin](https://github.com/apache/cordova-plugin-media)
  - [Web Audio Demo](https://github.com/cwilso/AudioRecorder) by [Chris Wilson](https://github.com/cwilso)
+ - [WaveSurfer.js] (https://github.com/katspaugh/wavesurfer.js)
 
 
 ## License (MIT)
