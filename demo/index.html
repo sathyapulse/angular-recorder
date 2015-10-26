@@ -2,7 +2,7 @@
 
 <head>
     <title>Demo for Audio Recorder</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.7/angular.min.js"></script>
+    <script src="../bower_components/angular/angular.min.js"></script>
     <script src="../audio-recorder.js"></script>
     <script src="../lib/html5-recorder.js"></script>
     <script src="../lib/flash-recorder.js"></script>
@@ -27,22 +27,29 @@
                 Stop Record
             </button>
 
-            <button ng-click="recorder.status.isPlaying ? recorder.playbackPause() : recorder.playbackResume()" type="button" ng-disabled="recorder.status.isRecording || !recorder.audioModel">
+            <button ng-click="recorder.status.isPlaying ? recorder.playbackPause() : recorder.playbackResume()"
+                    type="button" ng-disabled="recorder.status.isRecording || !recorder.audioModel">
                 {{recorder.status.isStopped || recorder.status.isPaused ? 'Play' : 'Pause'}}
             </button>
 
             <button ng-click="recorder.save()" ng-disabled="recorder.status.isRecording || !recorder.audioModel">
-                 Download
+                Download
             </button>
 
-            <div ng-show="recorder.isHtml5 && recorder.status.isRecording">
-                <ng-audio-recorder-analyzer></ng-audio-recorder-analyzer>
+            <div style="max-width: 600px">
+                <div ng-show="recorder.status.isConverting">
+                    Please wait while your recording is processed.
+                </div>
+
+                <div ng-show="recorder.isHtml5 && recorder.status.isRecording">
+                    <ng-audio-recorder-analyzer></ng-audio-recorder-analyzer>
+                </div>
+                <br/>
+
+                <div ng-show="recorder.isHtml5 &&  !recorder.status.isRecording && recorder.audioModel">
+                    <ng-audio-recorder-wave-view wave-color="yellow" bar-color="red"></ng-audio-recorder-wave-view>
+                </div>
             </div>
-            <br/>
-            <div ng-show="recorder.isHtml5 &&  !recorder.status.isRecording && recorder.audioModel">
-                <ng-audio-recorder-wave-view wave-color="yellow" bar-color="red"></ng-audio-recorder-wave-view>
-            </div>
-            <br/>
 
             <h2 style="font-family: sans-serif; text-align: center; width: 60px; border-radius: 20px;
         border: solid 2px #333; padding: 20px 10px;" ng-if="recorder.status.isRecording">
@@ -53,7 +60,11 @@
 
 
         <div ng-if="!recorder.isAvailable">
-            Your browser does not support this feature natively, please use latest version of <a href="https://www.google.com/chrome/browser" target="_blank">Google Chrome</a> or <a href="https://www.mozilla.org/en-US/firefox/new/" target="_blank">Mozilla Firefox</a>. If you're on Safari or Internet Explorer, you can install <a href="https://get.adobe.com/flashplayer/">Adobe Flash</a>  to use this feature.
+            Your browser does not support this feature natively, please use latest version of <a
+                href="https://www.google.com/chrome/browser" target="_blank">Google Chrome</a> or <a
+                href="https://www.mozilla.org/en-US/firefox/new/" target="_blank">Mozilla Firefox</a>. If you're on
+            Safari or Internet Explorer, you can install <a href="https://get.adobe.com/flashplayer/">Adobe Flash</a> to
+            use this feature.
         </div>
     </ng-audio-recorder>
 

@@ -24,7 +24,10 @@
     .constant('recorderScriptUrl', (function () {
       var scripts = document.getElementsByTagName('script');
       var myUrl = scripts[scripts.length - 1].getAttribute('src');
-      return myUrl.substr(0, myUrl.lastIndexOf('/') + 1);
+      var path = myUrl.substr(0, myUrl.lastIndexOf('/') + 1);
+      var a = document.createElement('a');
+      a.href = path;
+      return a.href;
     }()));
 
   ngRecorder.factory('recorderUtils', [
@@ -82,7 +85,12 @@
         permissionHandlers = {onDenied: null, onClosed: null, onAllow: null},
         forceSwf = false,
         swfUrl = scriptPath + 'lib/recorder.swf',
-        utils;
+        utils,
+        mp3Covert = false,
+        mp3Config = {bitRate: 92, lameJsUrl: scriptPath + 'lib/lame.min.js'}
+        ;
+
+      console.log(scriptPath);
 
       var swfHandlerConfig = {
         isAvailable: false,
@@ -283,15 +291,7 @@
         },
         getPermission: function () {
           navigator.getUserMedia({
-            "audio": {
-              "mandatory": {
-                "googEchoCancellation": "false",
-                "googAutoGainControl": "false",
-                "googNoiseSuppression": "false",
-                "googHighpassFilter": "false"
-              },
-              "optional": []
-            }
+            "audio": true
           }, html5HandlerConfig.gotStream, html5HandlerConfig.failStream);
         },
         init: function () {
@@ -376,6 +376,14 @@
         return swfHandlerConfig.loaded;
       };
 
+      service.shouldConvertToMp3 = function () {
+        return mp3Covert;
+      };
+
+      service.getMp3Config = function () {
+        return mp3Config;
+      };
+
       service.$html5AudioProps = html5AudioProps;
 
       var provider = {
@@ -393,6 +401,11 @@
         setSwfUrl: function (path) {
           swfUrl = path;
           return provider;
+        },
+        withMp3Conversion: function (bool, config) {
+          mp3Covert = !!bool;
+          mp3Config = angular.extend(mp3Config, config || {});
+          return provider;
         }
       };
 
@@ -406,7 +419,16 @@
     function (recorderService, $timeout) {
 
       var RecorderController = function (element, service, recorderUtils, $scope, $timeout, $interval) {
-        var control = this, cordovaMedia = {
+        //used in NON-Angular Async process
+        var scopeApply = function (fn) {
+          var phase = $scope.$root.$$phase;
+          if (phase !== '$apply' && phase !== '$digest') {
+            return $scope.$apply(fn);
+          }
+        };
+
+        var control = this,
+          cordovaMedia = {
             recorder: null,
             url: null,
             player: null
@@ -417,6 +439,7 @@
             playback: PLAYBACK.STOPPED,
             isDenied: null,
             isSwfLoaded: null,
+            isConverting: false,
             get isPlaying() {
               return status.playback === PLAYBACK.PLAYING;
             },
@@ -426,10 +449,20 @@
             get isPaused() {
               return status.playback === PLAYBACK.PAUSED;
             }
-          };
+          },
+          shouldConvertToMp3 = ('convertMp3' in control) ? !!control.convertMp3 : service.shouldConvertToMp3(),
+          mp3Converter = shouldConvertToMp3 ? new MP3Converter(service.getMp3Config()) : null;
+        ;
 
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
+        control.elapsedTime = 0;
+        //Sets ID for the element if ID doesn't exists
+        if (!control.id) {
+          control.id = recorderUtils.generateUuid();
+          element.attr("id", control.id);
+        }
+
 
         if (!service.isHtml5 && !service.isCordova) {
           status.isSwfLoaded = service.swfIsLoaded();
@@ -440,25 +473,94 @@
           });
         }
 
-        //used in NON-Angular Async process
-        var scopeApply = function () {
-          var phase;
-          phase = $scope.$root.$$phase;
-          if (phase !== '$apply' && phase !== '$digest') {
-            return $scope.$apply();
-          }
-        };
-
-        //Sets ID for the element if ID doesn't exists
-        if (!control.id) {
-          control.id = recorderUtils.generateUuid();
-          element.attr("id", control.id);
-        }
 
         //register controller with service
         service.setController(control.id, this);
 
-        control.elapsedTime = 0;
+        var playbackOnEnded = function () {
+          status.playback = PLAYBACK.STOPPED;
+          control.onPlaybackComplete();
+          console.log('PlaybackEnded');
+          scopeApply();
+        };
+
+        var playbackOnPause = function () {
+          status.playback = PLAYBACK.PAUSED;
+          control.onPlaybackPause();
+        };
+
+        var playbackOnStart = function () {
+          status.playback = PLAYBACK.PLAYING;
+          control.onPlaybackStart();
+        };
+
+        var playbackOnResume = function () {
+          status.playback = PLAYBACK.PLAYING;
+          control.onPlaybackResume();
+        };
+
+        var embedPlayer = function (blob) {
+          if (document.getElementById(audioObjId) == null) {
+            element.append('<audio type="audio/mp3" id="' + audioObjId + '"></audio>');
+
+            var audioPlayer = document.getElementById(audioObjId);
+            if (control.showPlayer) {
+              audioPlayer.setAttribute('controls', '');
+            }
+
+            audioPlayer.addEventListener("ended", playbackOnEnded);
+            audioPlayer.addEventListener("pause", function (e) {
+              if (this.duration !== this.currentTime) {
+                console.log('PlaybackPaused');
+                playbackOnPause();
+                scopeApply();
+              }
+            });
+
+
+            audioPlayer.addEventListener("playing", function (e) {
+              if (status.isPaused) {
+                console.log('PlaybackResumed');
+                playbackOnResume();
+              } else {
+                console.log('PlaybackStarted');
+                playbackOnStart();
+              }
+              scopeApply();
+            });
+
+          }
+
+          if(blob){
+            blobToDataURL(blob, function (url) {
+              document.getElementById(audioObjId).src = url;
+            });
+          } else {
+            document.getElementById(audioObjId).removeAttribute('src');
+          }
+        };
+
+        var doMp3Conversion = function (blobInput, successCallback) {
+          if (mp3Converter) {
+            status.isConverting = true;
+            mp3Converter.convert(blobInput, function (mp3Blob) {
+              status.isConverting = false;
+              if (successCallback) {
+                successCallback(mp3Blob);
+              }
+              scopeApply(control.onConversionComplete);
+            }, function () {
+              status.isConverting = false;
+            });
+            //call conversion started
+            control.onConversionStart();
+          }
+        };
+
+        control.getAudioPlayer = function () {
+          return service.isCordova ? cordovaMedia.player : document.getElementById(audioObjId);
+        };
+
 
         control.startRecord = function () {
           if (!service.isAvailable()) {
@@ -532,71 +634,6 @@
           }
         };
 
-        var onEnded = function () {
-          status.playback = PLAYBACK.STOPPED;
-          control.onPlaybackComplete();
-          console.log('PlaybackEnded');
-          scopeApply();
-        };
-
-        var onPause = function () {
-          status.playback = PLAYBACK.PAUSED;
-          control.onPlaybackPause();
-        };
-
-        var onStart = function () {
-          status.playback = PLAYBACK.PLAYING;
-          control.onPlaybackStart();
-        };
-
-        var onResume = function () {
-          status.playback = PLAYBACK.PLAYING;
-          control.onPlaybackResume();
-        };
-
-        var displayPlayback = function (blob) {
-          if (document.getElementById(audioObjId) == null) {
-            element.append('<audio type="audio/mp3" id="' + audioObjId + '"></audio>');
-
-            var audioPlayer = document.getElementById(audioObjId);
-            if (control.showPlayer) {
-              audioPlayer.setAttribute('controls', '');
-            }
-
-            audioPlayer.addEventListener("ended", onEnded);
-            audioPlayer.addEventListener("pause", function (e) {
-              if (this.duration !== this.currentTime) {
-                console.log('PlaybackPaused');
-                onPause();
-                scopeApply();
-              }
-            });
-
-
-            audioPlayer.addEventListener("playing", function (e) {
-              if (status.isPaused) {
-                console.log('PlaybackResumed');
-                onResume();
-              } else {
-                console.log('PlaybackStarted');
-                onStart();
-              }
-              scopeApply();
-            });
-
-          }
-
-          blobToDataURL(blob, function (url) {
-            document.getElementById(audioObjId).src = url;
-          });
-
-
-        };
-
-        control.getAudioPlayer = function () {
-          return service.isCordova ? cordovaMedia.player : document.getElementById(audioObjId);
-        };
-
         control.stopRecord = function () {
           var id = control.id;
           if (!service.isAvailable() || !status.isRecording) {
@@ -606,45 +643,44 @@
           var recordHandler = service.getHandler();
           var completed = function (blob) {
             $interval.cancel(timing);
-            control.audioModel = blob;
-            if (blob) {
-              displayPlayback(blob);
-            }
             status.isRecording = false;
+            var finalize = function (inputBlob) {
+              control.audioModel = inputBlob;
+              embedPlayer(inputBlob);
+            };
+
+            if (shouldConvertToMp3) {
+              doMp3Conversion(blob, finalize);
+            } else {
+              finalize(blob)
+            }
+
+            embedPlayer(null);
             control.onRecordComplete();
           };
 
           //To stop recording
           if (service.isCordova) {
             cordovaMedia.recorder.stopRecord();
-            completed(null);
             window.resolveLocalFileSystemURL(cordovaMedia.url, function (entry) {
               entry.file(function (blob) {
-                control.audioModel = blob;
-                console.log('File resolved: ', blob.size, ' Type: ', blob.type);
-                scopeApply();
+                completed(blob);
               });
             }, function (err) {
               console.log('Could not retrieve file, error code:', err.code);
             });
           } else if (service.isHtml5) {
             recordHandler.stop();
-            recordHandler.getBuffers(function (audioBuffer) {
+            recordHandler.getBuffer(function (audioBuffer) {
               control.audioBuffer = audioBuffer;
-              recordHandler.exportMonoWAV(function (blob) {
-                MP3Converter(blob, function(mp3Blob){
-                  completed(mp3Blob);
-                  scopeApply();
-                });
+              recordHandler.exportWAV(function (blob) {
+                completed(blob);
+                scopeApply();
               });
             });
           } else {
             recordHandler.stopRecording(id);
-            //completed(recordHandler.getBlob(id));
-            MP3Converter(recordHandler.getBlob(id), function(mp3Blob){
-              completed(mp3Blob);
-              scopeApply();
-            });
+            completed(recordHandler.getBlob(id));
           }
         };
 
@@ -654,11 +690,11 @@
           }
 
           if (service.isCordova) {
-            cordovaMedia.player = new Media(cordovaMedia.url, onEnded, function () {
+            cordovaMedia.player = new Media(cordovaMedia.url, playbackOnEnded, function () {
               console.log('Playback failed');
             });
             cordovaMedia.player.play();
-            onStart();
+            playbackOnStart();
           } else {
             control.getAudioPlayer().play();
           }
@@ -672,7 +708,7 @@
 
           control.getAudioPlayer().pause();
           if (service.isCordova) {
-            onPause();
+            playbackOnPause();
           }
         };
 
@@ -685,7 +721,7 @@
             //previously paused, just resume
             control.getAudioPlayer().play();
             if (service.isCordova) {
-              onResume();
+              playbackOnResume();
             }
           } else {
             control.playbackRecording();
@@ -694,14 +730,22 @@
         };
 
 
-        control.save = function () {
+        control.save = function (fileName) {
           if (!service.isAvailable() || status.isRecording || !control.audioModel) {
             return false;
           }
 
-          var blobUrl = (window.URL || window.webkitURL).createObjectURL(control.audioModel);
-          angular.element('<a href="' + blobUrl + '" download></a>')[0].click();
+          if (!fileName) {
+            fileName = 'audio_recording_' + control.id + (control.audioModel.type.indexOf('mp3') > -1 ? 'mp3' : 'wav');
+          }
 
+          var blobUrl = (window.URL || window.webkitURL).createObjectURL(control.audioModel);
+          var a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = fileName;
+          var click = document.createEvent("Event");
+          click.initEvent("click", true, true);
+          a.dispatchEvent(click);
         };
 
         control.isHtml5 = function () {
@@ -733,6 +777,8 @@
           onPlaybackStart: '&',
           onPlaybackPause: '&',
           onPlaybackResume: '&',
+          onConversionStart: '&',
+          onConversionComplete: '&',
           showPlayer: '@',
           autoStart: '@'
         },
@@ -840,7 +886,6 @@
 
           appendActionToCallback(recorder, 'onRecordStart', updateAnalysers, 'analyzer');
           appendActionToCallback(recorder, 'onRecordComplete', cancelAnalyserUpdates, 'analyzer');
-
         }
       };
     }
