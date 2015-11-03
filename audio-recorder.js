@@ -828,6 +828,12 @@
 
             if (!analyserContext) {
               var canvas = element.find("canvas")[0];
+
+              if(attrs.width)
+                canvas.width = attrs.width;
+              if(attrs.height)
+                canvas.height = attrs.height;
+
               canvasWidth = canvas.width;
               canvasHeight = canvas.height;
               analyserContext = canvas.getContext('2d');
@@ -856,7 +862,10 @@
                   magnitude += freqByteData[offset + j];
                 magnitude = magnitude / multiplier;
                 var magnitude2 = freqByteData[i * multiplier];
-                analyserContext.fillStyle = "hsl( " + Math.round((i * 360) / numBars) + ", 100%, 50%)";
+                if(attrs.waveColor)
+                  analyserContext.fillStyle = attrs.waveColor;
+                else
+                  analyserContext.fillStyle = "hsl( " + Math.round((i * 360) / numBars) + ", 100%, 50%)";
                 analyserContext.fillRect(i * SPACING, canvasHeight, BAR_WIDTH, -magnitude);
               }
             }
