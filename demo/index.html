@@ -15,7 +15,7 @@
 <div ng-controller='DemoController'>
     <h1>Welcome to Recorder Demo </h1>
 
-    <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="false">
+    <ng-audio-recorder id="mainAudio" audio-model="recorded" show-player="false" time-limit="timeLimit">
         <div ng-if="recorder.isAvailable">
 
             <div ng-if="recorder.status.isDenied === true" style="color: red;">
@@ -58,6 +58,10 @@
                 {{recorder.elapsedTime > 9 ? recorder.elapsedTime : ('0'+recorder.elapsedTime)}}
             </h2>
 
+
+            <h2 style="font-family: sans-serif; text-align: center; border: solid 2px #333; padding: 20px 10px;" ng-if="recorder.status.isRecording">
+                Remaining Time: {{recorder.timeLimit - recorder.elapsedTime}}
+            </h2>
         </div>
 
 

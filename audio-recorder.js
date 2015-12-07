@@ -3,7 +3,7 @@
  * Modified by JTO
  */
 (function () {
-  'use strict'
+  'use strict';
 
   var PLAYBACK = {
     STOPPED: 0,
@@ -451,6 +451,8 @@
           mp3Converter = shouldConvertToMp3 ? new MP3Converter(service.getMp3Config()) : null;
         ;
 
+
+        control.timeLimit = control.timeLimit || 0;
         control.status = createReadOnlyVersion(status);
         control.isAvailable = service.isAvailable();
         control.elapsedTime = 0;
@@ -607,6 +609,9 @@
             control.elapsedTime = 0;
             timing = $interval(function () {
               ++control.elapsedTime;
+              if (control.timeLimit && control.timeLimit > 0 && control.elapsedTime >= control.timeLimit) {
+                control.stopRecord();
+              }
             }, 1000);
           };
 
@@ -776,7 +781,8 @@
           onConversionComplete: '&',
           showPlayer: '=',
           autoStart: '=',
-          convertMp3: '='
+          convertMp3: '=',
+          timeLimit: '='
         },
         controllerAs: 'recorder',
         bindToController: true,
@@ -829,9 +835,9 @@
             if (!analyserContext) {
               var canvas = element.find("canvas")[0];
 
-              if(attrs.width)
+              if (attrs.width)
                 canvas.width = attrs.width;
-              if(attrs.height)
+              if (attrs.height)
                 canvas.height = attrs.height;
 
               canvasWidth = canvas.width;
@@ -862,7 +868,7 @@
                   magnitude += freqByteData[offset + j];
                 magnitude = magnitude / multiplier;
                 var magnitude2 = freqByteData[i * multiplier];
-                if(attrs.waveColor)
+                if (attrs.waveColor)
                   analyserContext.fillStyle = attrs.waveColor;
                 else
                   analyserContext.fillStyle = "hsl( " + Math.round((i * 360) / numBars) + ", 100%, 50%)";
@@ -920,9 +926,9 @@
           }, 'waveView');
 
           appendActionToCallback(recorder, 'onRecordComplete', function () {
-            if(!audioPlayer){
+            if (!audioPlayer) {
               audioPlayer = recorder.getAudioPlayer();
-              audioPlayer.addEventListener('seeking', function(e){
+              audioPlayer.addEventListener('seeking', function (e) {
                 var progress = audioPlayer.currentTime / audioPlayer.duration;
                 waveSurfer.seekTo(progress);
               });
@@ -994,7 +1000,7 @@
     var a = new FileReader();
     a.onload = function (e) {
       callback(e.target.result);
-    }
+    };
     a.readAsDataURL(blob);
   };
 

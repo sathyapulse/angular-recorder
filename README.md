@@ -144,6 +144,7 @@ This is probably the only component which you will interact with when using this
 - `on-conversion-start`: callback to execute when MP3 conversion starts.
 - `on-conversion-complete`: callback to execute when MP3 conversion is completed
 - `convert-mp3`: Specifies if MP3 conversion should be done for this particular element, it overrides whatever was specified for `recorderServiceProvider.withMp3Conversion()`
+- `time-limit` (Number): specifes the time limit for the audio input, the recording will be automatically stopped when this limit is reached. Must be a number greater than 0.
 
 ### Controller `ngAudioRecorderController`
 
