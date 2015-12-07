@@ -4,15 +4,6 @@ angular.module('angularAudioRecorder.directives')
   .directive('ngAudioRecorderAnalyzer', ['recorderService', 'recorderUtils',
     function (service, utils) {
 
-      return {
-        restrict: 'E',
-        require: '^ngAudioRecorder',
-        template: '<div ng-if="!hide" class="audioRecorder-analyzer">' +
-        '<canvas class="analyzer" width="1200" height="400" style="max-width: 100%;"></canvas>' +
-        '</div>',
-        link: link
-      };
-
       var link = function (scope, element, attrs, recorder) {
         if (!service.isHtml5) {
           scope.hide = true;
@@ -88,6 +79,16 @@ angular.module('angularAudioRecorder.directives')
 
         utils.appendActionToCallback(recorder, 'onRecordStart', updateAnalysers, 'analyzer');
         utils.appendActionToCallback(recorder, 'onRecordComplete', cancelAnalyserUpdates, 'analyzer');
-      }
+      };
+
+      return {
+        restrict: 'E',
+        require: '^ngAudioRecorder',
+        template: '<div ng-if="!hide" class="audioRecorder-analyzer">' +
+        '<canvas class="analyzer" width="1200" height="400" style="max-width: 100%;"></canvas>' +
+        '</div>',
+        link: link
+      };
+
     }
   ]);

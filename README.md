@@ -30,9 +30,7 @@ The general structure is :
 
 ```html
 <!-- Somewhere on your page -->
-<script src="/path/to/audio-recorder/lib/html5-recorder.js"></script>
-<script src="/path/to/audio-recorder/lib/flash-recorder.js"></script>
-<script src="/path/to/audio-recorder/audio-recorder.js"></script>
+<script src="/path/to/angular-recorder/dist/angular-audio-recorder.min.js"></script>
 <!--- use if you want wave display !-->
 <script src="/path/to/wavesurfer/wavesurfer.min.js"></script>
 ```

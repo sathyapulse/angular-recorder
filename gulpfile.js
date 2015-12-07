@@ -14,7 +14,7 @@ var scriptsGlob = 'src/**/*.js', outfile = 'angular-audio-recorder';
 
 gulp.task('angularScripts', function () {
 
-  return gulp.src([scriptsGlob, '!src/flash-recorder.js', '!src/html5-recorder.js'])
+  return gulp.src([scriptsGlob, '!src/swfobject.js', '!src/flash-recorder.js', '!src/html5-recorder.js'])
     .pipe(ngModuleSort())
     .pipe(replace(/\s*'use strict';?\s*/, ''))
     .pipe(concat(outfile + '.js'))         // do things that require all files
@@ -25,7 +25,7 @@ gulp.task('angularScripts', function () {
 
 
 gulp.task('scripts', ['angularScripts'], function () {
-  return gulp.src(['.tmp/' + outfile + '.js', 'src/html5-recorder.js', 'src/flash-recorder.js'])
+  return gulp.src(['.tmp/' + outfile + '.js', 'src/html5-recorder.js', 'src/swfobject.js', 'src/flash-recorder.js'])
     .pipe(concat(outfile + '.js'))
     .pipe(gulp.dest('dist/'));
   ;
