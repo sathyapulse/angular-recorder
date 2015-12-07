@@ -17,7 +17,8 @@
  DEALINGS IN THE SOFTWARE.
  */
 
-(function (window) {
+(function (win) {
+  'use strict';
 
   var workerToBlobUrl = function (fn, params) {
     if (typeof fn !== 'function') {
@@ -427,7 +428,6 @@
     }
   };
 
-  window.Recorder = Recorder;
-  window.MP3Converter = MP3Converter;
-
+  win.Recorder = Recorder;
+  win.MP3Converter = MP3Converter;
 })(window);

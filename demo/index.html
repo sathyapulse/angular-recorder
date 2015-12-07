@@ -4,10 +4,7 @@
     <title>Demo for Audio Recorder</title>
     <script src="../bower_components/angular/angular.min.js"></script>
     <script src="../bower_components/wavesurfer.js/dist/wavesurfer.min.js"></script>
-    <script src="../audio-recorder.js"></script>
-    <script src="../lib/html5-recorder.js"></script>
-    <script src="../lib/flash-recorder.js"></script>
-
+    <script src="../dist/angular-audio-recorder.min.js"></script>
     <script src="demo.js"></script>
 </head>
 
@@ -59,7 +56,8 @@
             </h2>
 
 
-            <h2 style="font-family: sans-serif; text-align: center; border: solid 2px #333; padding: 20px 10px;" ng-if="recorder.status.isRecording">
+            <h2 style="font-family: sans-serif; text-align: center; border: solid 2px #333; padding: 20px 10px;"
+                ng-if="recorder.status.isRecording">
                 Remaining Time: {{recorder.timeLimit - recorder.elapsedTime}}
             </h2>
         </div>
