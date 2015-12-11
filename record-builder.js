@@ -60,6 +60,14 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                FWRecorder.recorderOriginalHeight = 1;
                                scope.recordPermissionControl.isReady = true;
                                scope.recordPermissionControl.recordHandler = FWRecorder;
+
+                               if(FWRecorder.isMicrophoneAccessible()) {
+                                   localStorage.setItem("permission", "given");
+                               }
+                               else {
+                                   localStorage.setItem("permission", false);
+                               }
+
                                break;
 
                            case "no_microphone_found":
@@ -70,16 +78,15 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                break;
 
                            case "microphone_connected":
+                               //to store permission for https websites
+                               localStorage.setItem("permission", "given");
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
-                                   if(window.location.protocol == 'https:'){
-                                     //to store permission for https websites
-                                     localStorage.setItem("permission", "given");
-                                   }
                                    scope.recordPermissionControl.onPermissionAllowed();
                                }
                                break;
 
                            case "microphone_not_connected":
+                               localStorage.setItem("permission", false);
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionDenied)) {
                                    scope.recordPermissionControl.onPermissionDenied();
                                }
@@ -185,12 +192,13 @@ angular.module('recorder').directive('recordPermissionHandler', [
                        scope.recordPermissionControl.isReady = true;
 
                        scope.recordPermissionControl.recordHandler = audioRecorder;
-                       
+
+                       if(window.location.protocol == 'https:'){
+                           //to store permission for https websites
+                           localStorage.setItem("permission", "given");
+                       }
+
                        if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
-                           if(window.location.protocol == 'https:'){
-                             //to store permission for https websites
-                             localStorage.setItem("permission", "given");
-                           }
                            scope.recordPermissionControl.onPermissionAllowed();
                        }
 
@@ -198,6 +206,7 @@ angular.module('recorder').directive('recordPermissionHandler', [
 
                    var failStream = function (data) {
                        console.log(data);
+                       localStorage.setItem("permission", false);
                        if(angular.isDefined(scope.recordPermissionControl.onPermissionDenied)) {
                            scope.recordPermissionControl.onPermissionDenied();
                        }
@@ -217,7 +226,7 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    }
                    audioContext = window.audioContextInstance;
 
-                   if(localStorage.getItem("permission") !== null){
+                   if(localStorage.getItem("permission") == "given"){
 
                       //to get permission from browser cache for returning user
                         navigator.getUserMedia({
@@ -233,8 +242,14 @@ angular.module('recorder').directive('recordPermissionHandler', [
                        }, gotStream, failStream);
                    }
 
+
+
                }
                else {
+                   //Flash external events initialised when user launches activity
+                   window.fwr_event_handler = flashExternalEvents;
+                   window.configureMicrophone = flashconfigureMic;
+
                    //Flash recorder external events
                    scope.recordPermissionControl.isHtml5 = false;
 
@@ -277,9 +292,7 @@ angular.module('recorder').directive('recordPermissionHandler', [
 
 
                    swfobject.embedSWF( scriptPath + "recorderjs/recorder.swf", "recorder-content", "0", "0", "11.0.0", "", flashvars, params, attrs);
-                   //Flash external events initialised when user launches activity
-                   window.fwr_event_handler = flashExternalEvents;
-                   window.configureMicrophone = flashconfigureMic;
+
                    
                }
 
@@ -300,8 +313,8 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    else {
                        FWRecorder.showPermissionWindow({permanent: true});
                        //Flash external events called for returning users or using cog icon
-                       window.fwr_event_handler = flashExternalEvents;
-                       window.configureMicrophone = flashconfigureMic;
+                       //window.fwr_event_handler = flashExternalEvents;
+                       //window.configureMicrophone = flashconfigureMic;
                    }
 
                };
