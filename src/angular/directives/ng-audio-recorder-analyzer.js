@@ -17,10 +17,13 @@ angular.module('angularAudioRecorder.directives')
           if (!analyserContext) {
             var canvas = element.find("canvas")[0];
 
-            if (attrs.width)
+            if (attrs.width && !isNaN(attrs.width)) {
               canvas.width = attrs.width;
-            if (attrs.height)
-              canvas.height = attrs.height;
+            }
+
+            if (attrs.height && !isNaN(attrs.height)) {
+              canvas.height = parseInt(attrs.height);
+            }
 
             canvasWidth = canvas.width;
             canvasHeight = canvas.height;

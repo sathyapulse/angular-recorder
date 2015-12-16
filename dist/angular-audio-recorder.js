@@ -437,10 +437,13 @@ angular.module('angularAudioRecorder.directives')
           if (!analyserContext) {
             var canvas = element.find("canvas")[0];
 
-            if (attrs.width)
+            if (attrs.width && !isNaN(attrs.width)) {
               canvas.width = attrs.width;
-            if (attrs.height)
-              canvas.height = attrs.height;
+            }
+
+            if (attrs.height && !isNaN(attrs.height)) {
+              canvas.height = parseInt(attrs.height);
+            }
 
             canvasWidth = canvas.width;
             canvasHeight = canvas.height;
@@ -1025,6 +1028,267 @@ angular.module('angularAudioRecorder.services')
       return factory;
     }
   ]);})();
+(function (global) {
+  'use strict';
+
+  var Recorder, RECORDED_AUDIO_TYPE = "audio/wav";
+
+  Recorder = {
+    recorder: null,
+    recorderOriginalWidth: 0,
+    recorderOriginalHeight: 0,
+    uploadFormId: null,
+    uploadFieldName: null,
+    isReady: false,
+
+    connect: function (name, attempts) {
+      if (navigator.appName.indexOf("Microsoft") != -1) {
+        Recorder.recorder = window[name];
+      } else {
+        Recorder.recorder = document[name];
+      }
+
+      if (attempts >= 40) {
+        return;
+      }
+
+      // flash app needs time to load and initialize
+      if (Recorder.recorder && Recorder.recorder.init) {
+        Recorder.recorderOriginalWidth = Recorder.recorder.width;
+        Recorder.recorderOriginalHeight = Recorder.recorder.height;
+        if (Recorder.uploadFormId && $) {
+          var frm = $(Recorder.uploadFormId);
+          Recorder.recorder.init(frm.attr('action').toString(), Recorder.uploadFieldName, frm.serializeArray());
+        }
+        return;
+      }
+
+      setTimeout(function () {
+        Recorder.connect(name, attempts + 1);
+      }, 100);
+    },
+
+    playBack: function (name) {
+      // TODO: Rename to `playback`
+      Recorder.recorder.playBack(name);
+    },
+
+    pausePlayBack: function (name) {
+      // TODO: Rename to `pausePlayback`
+      Recorder.recorder.pausePlayBack(name);
+    },
+
+    playBackFrom: function (name, time) {
+      // TODO: Rename to `playbackFrom`
+      Recorder.recorder.playBackFrom(name, time);
+    },
+
+    record: function (name, filename) {
+      Recorder.recorder.record(name, filename);
+    },
+
+    stopRecording: function () {
+      Recorder.recorder.stopRecording();
+    },
+
+    stopPlayBack: function () {
+      // TODO: Rename to `stopPlayback`
+      Recorder.recorder.stopPlayBack();
+    },
+
+    observeLevel: function () {
+      Recorder.recorder.observeLevel();
+    },
+
+    stopObservingLevel: function () {
+      Recorder.recorder.stopObservingLevel();
+    },
+
+    observeSamples: function () {
+      Recorder.recorder.observeSamples();
+    },
+
+    stopObservingSamples: function () {
+      Recorder.recorder.stopObservingSamples();
+    },
+
+    resize: function (width, height) {
+      Recorder.recorder.width = width + "px";
+      Recorder.recorder.height = height + "px";
+    },
+
+    defaultSize: function () {
+      Recorder.resize(Recorder.recorderOriginalWidth, Recorder.recorderOriginalHeight);
+    },
+
+    show: function () {
+      Recorder.recorder.show();
+    },
+
+    hide: function () {
+      Recorder.recorder.hide();
+    },
+
+    duration: function (name) {
+      // TODO: rename to `getDuration`
+      return Recorder.recorder.duration(name || Recorder.uploadFieldName);
+    },
+
+    getBase64: function (name) {
+      var data = Recorder.recorder.getBase64(name);
+      return 'data:' + RECORDED_AUDIO_TYPE + ';base64,' + data;
+    },
+
+    getBlob: function (name) {
+      var base64Data = Recorder.getBase64(name).split(',')[1];
+      return base64toBlob(base64Data, RECORDED_AUDIO_TYPE);
+    },
+
+    getCurrentTime: function (name) {
+      return Recorder.recorder.getCurrentTime(name);
+    },
+
+    isMicrophoneAccessible: function () {
+      return Recorder.recorder.isMicrophoneAccessible();
+    },
+
+    updateForm: function () {
+      var frm = $(Recorder.uploadFormId);
+      Recorder.recorder.update(frm.serializeArray());
+    },
+
+    showPermissionWindow: function (options) {
+      Recorder.resize(240, 160);
+      // need to wait until app is resized before displaying permissions screen
+      var permissionCommand = function () {
+        if (options && options.permanent) {
+          Recorder.recorder.permitPermanently();
+        } else {
+          Recorder.recorder.permit();
+        }
+      };
+      setTimeout(permissionCommand, 1);
+    },
+
+    configure: function (rate, gain, silenceLevel, silenceTimeout) {
+      rate = parseInt(rate || 22);
+      gain = parseInt(gain || 100);
+      silenceLevel = parseInt(silenceLevel || 0);
+      silenceTimeout = parseInt(silenceTimeout || 4000);
+      switch (rate) {
+        case 44:
+        case 22:
+        case 11:
+        case 8:
+        case 5:
+          break;
+        default:
+          throw("invalid rate " + rate);
+      }
+
+      if (gain < 0 || gain > 100) {
+        throw("invalid gain " + gain);
+      }
+
+      if (silenceLevel < 0 || silenceLevel > 100) {
+        throw("invalid silenceLevel " + silenceLevel);
+      }
+
+      if (silenceTimeout < -1) {
+        throw("invalid silenceTimeout " + silenceTimeout);
+      }
+
+      Recorder.recorder.configure(rate, gain, silenceLevel, silenceTimeout);
+    },
+
+    setUseEchoSuppression: function (val) {
+      if (typeof(val) != 'boolean') {
+        throw("invalid value for setting echo suppression, val: " + val);
+      }
+
+      Recorder.recorder.setUseEchoSuppression(val);
+    },
+
+    setLoopBack: function (val) {
+      if (typeof(val) != 'boolean') {
+        throw("invalid value for setting loop back, val: " + val);
+      }
+
+      Recorder.recorder.setLoopBack(val);
+    }
+  };
+
+  function base64toBlob(b64Data, contentType, sliceSize) {
+    contentType = contentType || '';
+    sliceSize = sliceSize || 512;
+
+    var byteCharacters = atob(b64Data);
+    var byteArrays = [];
+
+    for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+      var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+      var byteNumbers = new Array(slice.length);
+      for (var i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+
+      var byteArray = new Uint8Array(byteNumbers);
+      byteArrays.push(byteArray);
+    }
+
+    return new Blob(byteArrays, {type: contentType});
+  }
+
+
+  global.FWRecorder = Recorder;
+
+
+})(window);
+/**
+ * This script adds a new function to a function prototype,
+ * which allows a function to be converted to a web worker.
+ *
+ * Please note that this method copies the function's source code into a Blob, so references to variables
+ * outside the function's own scope will be invalid.
+ *
+ * You can however pass variables that can be serialized into JSON, to this function using the params parameter
+ *
+ * @usage
+ * ```
+ * myFunction.toWorker({param1: p1, param2: p2...})
+ *```
+ *
+ */
+(function () {
+  'use strict';
+
+
+  var workerToBlobUrl = function (fn, params) {
+    if (typeof fn !== 'function') {
+      throw("The specified parameter must be a valid function");
+    }
+    var fnString = fn.toString();
+    if (fnString.match(/\[native\s*code\]/i)) {
+      throw("You cannot bind a native function to a worker");
+    }
+    ;
+
+    params = params || {};
+    if (typeof params !== 'object') {
+      console.warn('Params must be an object that is serializable with JSON.stringify, specified is: ' + (typeof params));
+    }
+
+    var blobURL = window.URL.createObjectURL(new Blob(['(', fnString, ')(this,', JSON.stringify(params), ')'], {type: 'application/javascript'}));
+
+    return blobURL;
+  };
+
+  Function.prototype.toWorker = function (params) {
+    var url = workerToBlobUrl(this, params);
+    return new Worker(url);
+  };
+})();
 /*License (MIT)
 
  Copyright © 2013 Matt Diamond
@@ -1046,31 +1310,6 @@ angular.module('angularAudioRecorder.services')
 
 (function (win) {
   'use strict';
-
-  var workerToBlobUrl = function (fn, params) {
-    if (typeof fn !== 'function') {
-      throw("The specified parameter must be a valid function");
-    }
-    var fnString = fn.toString();
-    if (fnString.match(/\[native\s*code\]/i)) {
-      throw("You cannot bind a native function to a worker");
-    }
-    ;
-
-    params = params || {};
-    if (typeof params !== 'object') {
-      console.warn('Params must be an object that is serializable with JSON.stringify, specified is: ' + (typeof params));
-    }
-
-    var blobURL = URL.createObjectURL(new Blob(['(', fnString, ')(this,', JSON.stringify(params), ')'], {type: 'application/javascript'}));
-
-    return blobURL;
-  };
-
-  Function.prototype.toWorker = function (params) {
-    var url = workerToBlobUrl(this, params);
-    return new Worker(url);
-  };
 
   var RecorderWorker = function (me) {
     var recLength = 0,
@@ -1274,7 +1513,6 @@ angular.module('angularAudioRecorder.services')
       });
     };
 
-    //Mp3 conversion
     worker.onmessage = function (e) {
       var blob = e.data;
       //console.log("the blob " +  blob + " " + blob.size + " " + blob.type);
@@ -1282,19 +1520,15 @@ angular.module('angularAudioRecorder.services')
     };
 
 
-    function Uint8ArrayToFloat32Array(u8a) {
-      var f32Buffer = new Float32Array(u8a.length);
-      for (var i = 0; i < u8a.length; i++) {
-        var value = u8a[i << 1] + (u8a[(i << 1) + 1] << 8);
-        if (value >= 0x8000) value |= ~0x7FFF;
-        f32Buffer[i] = value / 0x8000;
-      }
-      return f32Buffer;
-    }
-
     source.connect(this.node);
     this.node.connect(this.context.destination);    //this should not be necessary
   };
+
+  win.Recorder = Recorder;
+})(window);
+
+(function (win) {
+  'use strict';
 
   var MP3ConversionWorker = function (me, params) {
     //should not reference any variable in parent scope as it will executed in its
@@ -1326,7 +1560,7 @@ angular.module('angularAudioRecorder.services')
       wav = lame.WavHeader.readHeader(new DataView(arrayBuffer));
       console.log('wave:', wav);
       samples = new Int16Array(arrayBuffer, wav.dataOffset, wav.dataLen / 2);
-      mp3Encoder = new lame.Mp3Encoder(wav.channels, wav.sampleRate, config.bitRate || 96);
+      mp3Encoder = new lame.Mp3Encoder(wav.channels, wav.sampleRate, config.bitRate || 128);
 
       var remaining = samples.length;
       for (var i = 0; remaining >= maxSamples; i += maxSamples) {
@@ -1390,7 +1624,7 @@ angular.module('angularAudioRecorder.services')
         tag = conversionId + ":"
         ;
       console.log(tag, 'Starting conversion');
-      var preferredConfig = {}, onSuccess, onError
+      var preferredConfig = {}, onSuccess, onError;
       switch (typeof arguments[1]) {
         case 'object':
           preferredConfig = arguments[1];
@@ -1455,10 +1689,8 @@ angular.module('angularAudioRecorder.services')
     }
   };
 
-  win.Recorder = Recorder;
   win.MP3Converter = MP3Converter;
 })(window);
-
 (function (win) {
   'use strict';
 
@@ -2205,221 +2437,4 @@ angular.module('angularAudioRecorder.services')
       }
     };
   }();
-})(window);
-(function (global) {
-  'use strict';
-
-  var Recorder, RECORDED_AUDIO_TYPE = "audio/wav";
-
-  Recorder = {
-    recorder: null,
-    recorderOriginalWidth: 0,
-    recorderOriginalHeight: 0,
-    uploadFormId: null,
-    uploadFieldName: null,
-    isReady: false,
-
-    connect: function (name, attempts) {
-      if (navigator.appName.indexOf("Microsoft") != -1) {
-        Recorder.recorder = window[name];
-      } else {
-        Recorder.recorder = document[name];
-      }
-
-      if (attempts >= 40) {
-        return;
-      }
-
-      // flash app needs time to load and initialize
-      if (Recorder.recorder && Recorder.recorder.init) {
-        Recorder.recorderOriginalWidth = Recorder.recorder.width;
-        Recorder.recorderOriginalHeight = Recorder.recorder.height;
-        if (Recorder.uploadFormId && $) {
-          var frm = $(Recorder.uploadFormId);
-          Recorder.recorder.init(frm.attr('action').toString(), Recorder.uploadFieldName, frm.serializeArray());
-        }
-        return;
-      }
-
-      setTimeout(function () {
-        Recorder.connect(name, attempts + 1);
-      }, 100);
-    },
-
-    playBack: function (name) {
-      // TODO: Rename to `playback`
-      Recorder.recorder.playBack(name);
-    },
-
-    pausePlayBack: function (name) {
-      // TODO: Rename to `pausePlayback`
-      Recorder.recorder.pausePlayBack(name);
-    },
-
-    playBackFrom: function (name, time) {
-      // TODO: Rename to `playbackFrom`
-      Recorder.recorder.playBackFrom(name, time);
-    },
-
-    record: function (name, filename) {
-      Recorder.recorder.record(name, filename);
-    },
-
-    stopRecording: function () {
-      Recorder.recorder.stopRecording();
-    },
-
-    stopPlayBack: function () {
-      // TODO: Rename to `stopPlayback`
-      Recorder.recorder.stopPlayBack();
-    },
-
-    observeLevel: function () {
-      Recorder.recorder.observeLevel();
-    },
-
-    stopObservingLevel: function () {
-      Recorder.recorder.stopObservingLevel();
-    },
-
-    observeSamples: function () {
-      Recorder.recorder.observeSamples();
-    },
-
-    stopObservingSamples: function () {
-      Recorder.recorder.stopObservingSamples();
-    },
-
-    resize: function (width, height) {
-      Recorder.recorder.width = width + "px";
-      Recorder.recorder.height = height + "px";
-    },
-
-    defaultSize: function () {
-      Recorder.resize(Recorder.recorderOriginalWidth, Recorder.recorderOriginalHeight);
-    },
-
-    show: function () {
-      Recorder.recorder.show();
-    },
-
-    hide: function () {
-      Recorder.recorder.hide();
-    },
-
-    duration: function (name) {
-      // TODO: rename to `getDuration`
-      return Recorder.recorder.duration(name || Recorder.uploadFieldName);
-    },
-
-    getBase64: function (name) {
-      var data = Recorder.recorder.getBase64(name);
-      return 'data:' + RECORDED_AUDIO_TYPE + ';base64,' + data;
-    },
-
-    getBlob: function (name) {
-      var base64Data = Recorder.getBase64(name).split(',')[1];
-      return base64toBlob(base64Data, RECORDED_AUDIO_TYPE);
-    },
-
-    getCurrentTime: function (name) {
-      return Recorder.recorder.getCurrentTime(name);
-    },
-
-    isMicrophoneAccessible: function () {
-      return Recorder.recorder.isMicrophoneAccessible();
-    },
-
-    updateForm: function () {
-      var frm = $(Recorder.uploadFormId);
-      Recorder.recorder.update(frm.serializeArray());
-    },
-
-    showPermissionWindow: function (options) {
-      Recorder.resize(240, 160);
-      // need to wait until app is resized before displaying permissions screen
-      var permissionCommand = function () {
-        if (options && options.permanent) {
-          Recorder.recorder.permitPermanently();
-        } else {
-          Recorder.recorder.permit();
-        }
-      };
-      setTimeout(permissionCommand, 1);
-    },
-
-    configure: function (rate, gain, silenceLevel, silenceTimeout) {
-      rate = parseInt(rate || 22);
-      gain = parseInt(gain || 100);
-      silenceLevel = parseInt(silenceLevel || 0);
-      silenceTimeout = parseInt(silenceTimeout || 4000);
-      switch (rate) {
-        case 44:
-        case 22:
-        case 11:
-        case 8:
-        case 5:
-          break;
-        default:
-          throw("invalid rate " + rate);
-      }
-
-      if (gain < 0 || gain > 100) {
-        throw("invalid gain " + gain);
-      }
-
-      if (silenceLevel < 0 || silenceLevel > 100) {
-        throw("invalid silenceLevel " + silenceLevel);
-      }
-
-      if (silenceTimeout < -1) {
-        throw("invalid silenceTimeout " + silenceTimeout);
-      }
-
-      Recorder.recorder.configure(rate, gain, silenceLevel, silenceTimeout);
-    },
-
-    setUseEchoSuppression: function (val) {
-      if (typeof(val) != 'boolean') {
-        throw("invalid value for setting echo suppression, val: " + val);
-      }
-
-      Recorder.recorder.setUseEchoSuppression(val);
-    },
-
-    setLoopBack: function (val) {
-      if (typeof(val) != 'boolean') {
-        throw("invalid value for setting loop back, val: " + val);
-      }
-
-      Recorder.recorder.setLoopBack(val);
-    }
-  };
-
-  function base64toBlob(b64Data, contentType, sliceSize) {
-    contentType = contentType || '';
-    sliceSize = sliceSize || 512;
-
-    var byteCharacters = atob(b64Data);
-    var byteArrays = [];
-
-    for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-      var slice = byteCharacters.slice(offset, offset + sliceSize);
-
-      var byteNumbers = new Array(slice.length);
-      for (var i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-
-      var byteArray = new Uint8Array(byteNumbers);
-      byteArrays.push(byteArray);
-    }
-
-    return new Blob(byteArrays, {type: contentType});
-  }
-
-
-  global.FWRecorder = Recorder;
-
-
 })(window);
