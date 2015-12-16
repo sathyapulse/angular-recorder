@@ -16,10 +16,10 @@ angular.module('angularAudioRecorder.directives')
           onPlaybackResume: '&',
           onConversionStart: '&',
           onConversionComplete: '&',
-          showPlayer: '=',
-          autoStart: '=',
-          convertMp3: '=',
-          timeLimit: '='
+          showPlayer: '=?',
+          autoStart: '=?',
+          convertMp3: '=?',
+          timeLimit: '=?'
         },
         controllerAs: 'recorder',
         bindToController: true,
