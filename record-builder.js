@@ -60,7 +60,8 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                FWRecorder.recorderOriginalHeight = 1;
                                scope.recordPermissionControl.isReady = true;
                                scope.recordPermissionControl.recordHandler = FWRecorder;
-
+                               
+                               //to store permission in cache when rememebr is checked
                                if(FWRecorder.isMicrophoneAccessible()) {
                                    localStorage.setItem("permission", "given");
                                }
@@ -78,8 +79,6 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                break;
 
                            case "microphone_connected":
-                               //to store permission for https websites
-                               localStorage.setItem("permission", "given");
                                if(angular.isDefined(scope.recordPermissionControl.onPermissionAllowed)) {
                                    scope.recordPermissionControl.onPermissionAllowed();
                                }
