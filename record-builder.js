@@ -24,7 +24,8 @@ angular.module("recorder").factory('recorderUtils', [
 ]);
 
 angular.module('recorder').directive('recordPermissionHandler', [
-   function () {
+   "$timeout",
+   function ($timeout) {
        return {
            restrict: 'EA',
            scope: {
@@ -67,6 +68,12 @@ angular.module('recorder').directive('recordPermissionHandler', [
                                }
                                else {
                                    localStorage.setItem("permission", false);
+                               }
+
+                               if(angular.isDefined(scope.recordPermissionControl.onReady)) {
+                                   $timeout(function(){
+                                       scope.recordPermissionControl.onReady();
+                                   });
                                }
 
                                break;
@@ -242,6 +249,11 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    }
 
 
+                   if(angular.isDefined(scope.recordPermissionControl.onReady)) {
+                       $timeout(function(){
+                           scope.recordPermissionControl.onReady();
+                       });
+                   }
 
                }
                else {
@@ -312,8 +324,8 @@ angular.module('recorder').directive('recordPermissionHandler', [
                    else {
                        FWRecorder.showPermissionWindow({permanent: true});
                        //Flash external events called for returning users or using cog icon
-                       //window.fwr_event_handler = flashExternalEvents;
-                       //window.configureMicrophone = flashconfigureMic;
+                       window.fwr_event_handler = flashExternalEvents;
+                       window.configureMicrophone = flashconfigureMic;
                    }
 
                };
