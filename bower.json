@@ -1,6 +1,6 @@
 {
   "name": "angular-recorder",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "homepage": "https://github.com/sathyapulse/angular-recorder",
   "description": "Pure Angular js recorder which will support both Flash and HTML5",
   "license": "MIT",

@@ -440,6 +440,7 @@ angular.module('recorder').directive('recorderBuilder', [
                       cordovaRecorder.stopRecord('recorded-audio-'+id);
                       if(angular.isDefined(scope.recordControl.onRecordComplete)){
                         scope.recordControl.onRecordComplete(id);
+                        cordovaRecorder.release();
                       }
                     }
                     else {
@@ -500,13 +501,14 @@ angular.module('recorder').directive('recorderBuilder', [
                         var sourceAudio = audioObject.id+'.wav';
                       }
 
-                      var cordovaplayer = new Media(sourceAudio,
+                      var cordovaPlayer = new Media(sourceAudio,
                         function() {
                           if(angular.isDefined(audioObject.onComplete)){
                             audioObject.onComplete();
+                            cordovaPlayer.release();
                           }                          
                         });
-                      cordovaplayer.play();
+                       cordovaPlayer.play();
                    }
                    else{
                        audioPlayer.play();
