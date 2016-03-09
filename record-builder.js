@@ -351,6 +351,7 @@ angular.module('recorder').directive('recorderBuilder', [
             link: function(scope, element, attributes) {
                 var currentId = null;
                 var cordovaRecorder = null;
+                var audioPlayer = null;
 
                 //Gets id of the element in the DOM
                 var elementId = element.attr("id");
@@ -453,6 +454,21 @@ angular.module('recorder').directive('recorderBuilder', [
                     }
                 };
 
+                scope.stopRecordingPlayback = function(id) {
+                  //to stop playback on closing audio setup
+                  if(scope.isHtml5) {
+                    audioPlayer.pause();
+                  }
+                  else{
+                    var getRecordHandler = scope.getRecordHandler();
+                    getRecordHandler.pausePlayBack(id);
+                  }
+                   
+                   if(angular.isDefined(scope.recordControl.onPlaybackStopped)){
+                      scope.recordControl.onPlaybackStopped();
+                   }
+                };
+
                 scope.playbackRecording = function(id) {
 
                     var recordHandler = scope.getRecordHandler();
@@ -471,7 +487,16 @@ angular.module('recorder').directive('recorderBuilder', [
 
                     }
                     else {
-                        recordHandler.playBack(id);
+
+                        try {
+                          recordHandler.playBack(id);
+                        }
+                        catch(err) {
+                          if(angular.isDefined(scope.recordControl.onPlaybackComplete)){
+                            scope.recordControl.onPlaybackComplete();
+                          }
+                          return;
+                        }
                         
                         window.fwr_event_handler = function(eventName) {
 
@@ -491,7 +516,8 @@ angular.module('recorder').directive('recorderBuilder', [
                 scope.playbackAudio = function(audioObject){
 
                    //to play audio for device and desktop
-                   var audioPlayer = document.getElementById(audioObject.id);
+                   audioPlayer = document.getElementById(audioObject.id);
+
                    if(window.cordova){
                       if(audioPlayer){
                         var sourceAudio = audioPlayer.src;
@@ -541,6 +567,10 @@ angular.module('recorder').directive('recorderBuilder', [
 
                     scope.recordControl.playbackRecording = function (id) {
                         scope.playbackRecording(id);
+                    };
+
+                    scope.recordControl.stopRecordingPlayback = function (id) {
+                        scope.stopRecordingPlayback(id);
                     };
 
                     if(angular.isDefined(scope.recordControl.onReady)) {
