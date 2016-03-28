@@ -441,7 +441,10 @@ angular.module('recorder').directive('recorderBuilder', [
                       cordovaRecorder.stopRecord('recorded-audio-'+id);
                       if(angular.isDefined(scope.recordControl.onRecordComplete)){
                         scope.recordControl.onRecordComplete(id);
-                        cordovaRecorder.release();
+                        //to include release only for android pltform
+                        if(device.platform == 'Android'){
+                          cordovaRecorder.release();  
+                        }
                       }
                     }
                     else {
@@ -531,7 +534,10 @@ angular.module('recorder').directive('recorderBuilder', [
                         function() {
                           if(angular.isDefined(audioObject.onComplete)){
                             audioObject.onComplete();
-                            cordovaPlayer.release();
+                            //to include release only for android pltform
+                            if(device.platform == 'Android'){
+                              cordovaPlayer.release(); 
+                            }
                           }                          
                         });
                        cordovaPlayer.play();
