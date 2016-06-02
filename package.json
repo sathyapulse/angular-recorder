@@ -1,0 +1,37 @@
+{
+  "name": "angular-audio-recorder",
+  "version": "1.4.0",
+  "description": "Audio Recorder for AngularJS, works with mordern browsers supporting WebRTC microphone, older browsers with Flash installed and Cordova Media plugin",
+  "main": "index.js",
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-concat": "^2.6.0",
+    "gulp-footer": "^1.0.5",
+    "gulp-header": "^1.7.1",
+    "gulp-ng-module-sort": "0.0.3",
+    "gulp-rename": "^1.2.2",
+    "gulp-replace": "^0.5.4",
+    "gulp-uglify": "^1.5.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/logbon72/angular-recorder.git"
+  },
+  "keywords": [
+    "audio-recorder",
+    "angularjs",
+    "angular-audio-recorder",
+    "recorderjs",
+    "flash-wave-recorder",
+    "cordova-recorder"
+  ],
+  "author": "Joseph Orilogbon <joseph@intelworx.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/logbon72/angular-recorder/issues"
+  },
+  "homepage": "https://github.com/logbon72/angular-recorder#readme"
+}
