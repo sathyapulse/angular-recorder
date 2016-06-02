@@ -1,10 +1,19 @@
 {
-  "name": "angular-recorder",
-  "version": "2.0.7",
-  "homepage": "https://github.com/sathyapulse/angular-recorder",
-  "description": "Pure Angular js recorder which will support both Flash and HTML5",
+  "name": "angularAudioRecorder",
+  "version": "1.4.1",
+  "homepage": "https://github.com/logbon72/angular-recorder",
+  "description": "AngularJS audio recorder supporting Cordova Media, HTML5 and Flash, forked from https://github.com/sathyapulse/angular-recorder",
   "license": "MIT",
+  "dependencies": {
+    "angular": ">=1.4.x",
+    "wavesurfer.js": "~1.0.0"
+  },
+  "ignore": [
+    "bower_components",
+    ".gitignore",
+    "demo"
+  ],
   "main": [
-    "record-builder.js"
+    "dist/angular-audio-recorder.min.js"
   ]
 }
