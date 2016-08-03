@@ -1624,7 +1624,7 @@ angular.module('angularAudioRecorder.services')
         tag = conversionId + ":"
         ;
       console.log(tag, 'Starting conversion');
-      var preferredConfig = {}, onSuccess, onError;
+      var preferredConfig = config ? {bitRate: config.bitRate} : {}, onSuccess, onError;
       switch (typeof arguments[1]) {
         case 'object':
           preferredConfig = arguments[1];
