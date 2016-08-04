@@ -327,6 +327,9 @@ angular.module('angularAudioRecorder.services')
           mp3Covert = !!bool;
           mp3Config = angular.extend(mp3Config, config || {});
           return provider;
+        },
+        withResampling: function(sampleRate) {
+            mp3Config = angular.extend(mp3Config, {targetSampleRate: sampleRate});
         }
       };
 

@@ -95,6 +95,8 @@ This is the provider for configuring the `recorderService`.
     - `lameJsUrl : string` : URL path to lame.js, should only be specified it it is not in the lib directory.
     - `bitRate : number`: The [bit rate](https://en.wikipedia.org/wiki/MP3#Bit_rate) of the resulting MP3 file. Must be one of 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256 or 320
 
+- `recorderServiceProvider.withResampling(sampleRate: number) :recorderServiceProvider`:  This tellst the service to do resampling of the recorded data to a given sample rate (only for html5 audio).
+
 ### Service `recorderService`
 
 This service is used internally by the directive, even though it's exposed to your application, there is no guarantee on its behavior.

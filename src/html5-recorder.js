@@ -21,10 +21,13 @@
   'use strict';
 
   var RecorderWorker = function (me) {
+    var audioContext = new AudioContext();
+
     var recLength = 0,
       recBuffersL = [],
       recBuffersR = [],
       bits = 16,
+      targetSampleRate,
       sampleRate;
 
     me.onmessage = function (e) {
@@ -49,6 +52,7 @@
 
     function init(config) {
       sampleRate = config.sampleRate;
+      targetSampleRate = config.targetSampleRate || sampleRate;
     }
 
     function record(inputBuffer) {
@@ -59,10 +63,21 @@
 
     function exportWAV(type) {
       var bufferL = mergeBuffers(recBuffersL, recLength);
-      var dataview = encodeWAV(bufferL);
-      var audioBlob = new Blob([dataview], {type: type});
-
-      me.postMessage(audioBlob);
+      function sendBlob(buffer, sampleRate) {
+          var dataview = encodeWAV(buffer, sampleRate);
+          var audioBlob = new Blob([dataview], {type: type});
+          me.postMessage(audioBlob);
+      }
+      if (sampleRate === targetSampleRate) {
+          sendBlob(bufferL, sampleRate);
+      }
+      else {
+          var audioBuffer = audioContext.createBuffer(1, recLength, sampleRate);
+          audioBuffer.copyToChannel(bufferL, 0);
+          resampleAudioBuffer(audioBuffer, targetSampleRate, function(resampeledBuffer) {
+              sendBlob(resampeledBuffer.getChannelData(0), targetSampleRate);
+          });
+      }
     }
 
     function getBuffer() {
@@ -86,6 +101,25 @@
         offset += recBuffers[i].length;
       }
       return result;
+    }
+
+    function resampleAudioBuffer(audioBuffer, targetSampleRate, done) {
+        var numCh_ = audioBuffer.numberOfChannels;
+        var numFrames_ = audioBuffer.length * targetSampleRate / audioBuffer.sampleRate;
+
+        var offlineContext_ = new OfflineAudioContext(numCh_, numFrames_, targetSampleRate);
+        var bufferSource_ = offlineContext_.createBufferSource();
+        bufferSource_.buffer = audioBuffer;
+
+        offlineContext_.oncomplete = function(event) {
+            var resampeledBuffer = event.renderedBuffer;
+            done(resampeledBuffer);
+        };
+
+        console.log('Starting Offline Rendering');
+        bufferSource_.connect(offlineContext_.destination);
+        bufferSource_.start(0);
+        offlineContext_.startRendering();
     }
 
     //function interleave(inputL, inputR) {
@@ -117,7 +151,7 @@
     }
 
 
-    function encodeWAV(samples) {
+    function encodeWAV(samples, sampleRate) {
       var buffer = new ArrayBuffer(44 + samples.length * 2);
       var view = new DataView(buffer);
 
@@ -158,20 +192,41 @@
 
       return view;
     }
+
   };
 
-  var Recorder = function (source, cfg) {
+  var Recorder = function (source, cfg, testData) {
     var config = cfg || {};
-    var bufferLen = config.bufferLen || 4096;
+    var bufferLen = config.bufferLen || 16384;
     this.context = source.context;
     this.node = (this.context.createScriptProcessor ||
     this.context.createJavaScriptNode).call(this.context,
       bufferLen, 2, 2);
-    var worker = RecorderWorker.toWorker();
+    var worker;
+    if (false) {
+        worker = RecorderWorker.toWorker();
+    }
+    else {
+        var workerMe = {
+            postMessage: function(msg) {
+                worker.onmessage({
+                    data: angular.copy(msg)
+                });
+            }
+        };
+        worker = new RecorderWorker(workerMe);
+        worker.postMessage = function (msg) {
+            workerMe.onmessage({
+                data: angular.copy(msg)
+            });
+        };
+    }
     worker.postMessage({
       command: 'init',
       config: {
-        sampleRate: this.context.sampleRate
+        sampleRate: this.context.sampleRate,
+        targetSampleRate: config.targetSampleRate,
+        testData: testData
       }
     });
     var recording = false,
@@ -209,7 +264,7 @@
 
     this.getBuffer = function (cb) {
       currCallback = cb || config.callback;
-      worker.postMessage({command: 'getBuffer'})
+      worker.postMessage({command: 'getBuffer'});
     };
 
     this.exportWAV = function (cb, type) {
