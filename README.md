@@ -97,6 +97,11 @@ This is the provider for configuring the `recorderService`.
 
 - `recorderServiceProvider.withResampling(sampleRate: number) :recorderServiceProvider`:  This tellst the service to do resampling of the recorded data to a given sample rate (only for html5 audio).
 
+- `withPrerecorded.withResampling(selector: string) :recorderServiceProvider`:  This tellst the service take audio data from an `<audio>` element specified by a css selector. This allows testing of the audio encoding etc. with a prerecorded sample.
+
+    Example:
+    put an element like `<audio id="testdata" src="sounds/sample1.wav" type="audio/wav"></audio>` into your html and call `recorderServiceProvider.withPrerecorded('#testdata');`
+
 ### Service `recorderService`
 
 This service is used internally by the directive, even though it's exposed to your application, there is no guarantee on its behavior.

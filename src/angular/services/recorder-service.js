@@ -11,7 +11,8 @@ angular.module('angularAudioRecorder.services')
         swfUrl = scriptPath + '../lib/recorder.swf',
         utils,
         mp3Covert = false,
-        mp3Config = {bitRate: 92, lameJsUrl: scriptPath + '../lib/lame.min.js'}
+        mp3Config = {bitRate: 92, lameJsUrl: scriptPath + '../lib/lame.min.js'},
+        audioElementSelector
         ;
 
       var swfHandlerConfig = {
@@ -170,25 +171,43 @@ angular.module('angularAudioRecorder.services')
         inputPoint: null,
         audioInput: null,
         audioRecorder: null,
-        analyserNode: null
+        analyserNode: null,
+        audioElement: null,
       };
 
       var html5HandlerConfig = {
         gotStream: function (stream) {
           var audioContext = html5AudioProps.audioContext;
           // Create an AudioNode from the stream.
-          html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
-          html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
-
+          if(!audioElementSelector) {
+              html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
+              html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
+              html5AudioProps.audioRecorder = new Recorder(html5AudioProps.audioInput, mp3Config);
+          }
+          else {
+              html5AudioProps.audioElement = $(audioElementSelector).get(0);
+              html5AudioProps.audioInput = audioContext.createMediaElementSource(html5AudioProps.audioElement);
+              html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
+              html5AudioProps.audioRecorder = new Recorder(html5AudioProps.audioInput, mp3Config);
+              var origRecord = html5AudioProps.audioRecorder.record;
+              var origStop = html5AudioProps.audioRecorder.stop;
+              html5AudioProps.audioRecorder.record = function() {
+                  html5AudioProps.audioElement.play();
+                  origRecord();
+              };
+              html5AudioProps.audioRecorder.stop = function() {
+                  origStop();
+                  html5AudioProps.audioElement.pause();
+                  html5AudioProps.audioElement.currentTime = 0;
+              };
+          }
           //analyser
           html5AudioProps.analyserNode = audioContext.createAnalyser();
           html5AudioProps.analyserNode.fftSize = 2048;
           html5AudioProps.inputPoint.connect(html5AudioProps.analyserNode);
-          html5AudioProps.audioRecorder = new Recorder(html5AudioProps.audioInput);
-
           //create Gain
           var zeroGain = audioContext.createGain();
-          zeroGain.gain.value = 0.0;
+          zeroGain.gain.value = audioElementSelector ? 0.5 : 0.0;
           html5AudioProps.inputPoint.connect(zeroGain);
           zeroGain.connect(audioContext.destination);
 
@@ -330,6 +349,9 @@ angular.module('angularAudioRecorder.services')
         },
         withResampling: function(sampleRate) {
             mp3Config = angular.extend(mp3Config, {targetSampleRate: sampleRate});
+        },
+        withPrerecorded: function(selector) {
+            audioElementSelector = selector;
         }
       };
 
