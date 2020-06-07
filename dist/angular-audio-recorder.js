@@ -787,7 +787,10 @@ angular.module('angularAudioRecorder.services')
 
       var html5HandlerConfig = {
         gotStream: function (stream) {
+          console.log(1, stream);
           var audioContext = html5AudioProps.audioContext;
+          console.log(2, audioContext);
+          audioContext.resume()
           // Create an AudioNode from the stream.
           html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
           html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
@@ -818,14 +821,21 @@ angular.module('angularAudioRecorder.services')
 
         },
         failStream: function (data) {
+          console.log(3, data);
           if (angular.isDefined(permissionHandlers.onDenied)) {
             permissionHandlers.onDenied();
           }
         },
         getPermission: function () {
-          navigator.getUserMedia({
-            "audio": true
-          }, html5HandlerConfig.gotStream, html5HandlerConfig.failStream);
+          if(navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(html5HandlerConfig.gotStream)
+                .catch(html5HandlerConfig.failStream);
+          } else {
+            navigator.getUserMedia({
+              "audio": true
+            }, html5HandlerConfig.gotStream, html5HandlerConfig.failStream);
+          }
         },
         init: function () {
           service.isHtml5 = true;
@@ -841,9 +851,11 @@ angular.module('angularAudioRecorder.services')
         }
       };
 
+
       navigator.getUserMedia = navigator.getUserMedia
         || navigator.webkitGetUserMedia
-        || navigator.mozGetUserMedia;
+        || navigator.mozGetUserMedia
+        || (navigator.mediaDevices != undefined) ? navigator.mediaDevices.getUserMedia : undefined;
 
 
       service.isCordova = false;
@@ -880,8 +892,7 @@ angular.module('angularAudioRecorder.services')
           return true;
         }
 
-        return service.isHtml5
-          || swfHandlerConfig.isInstalled();
+        return service.isHtml5 || swfHandlerConfig.isInstalled();
       };
 
       service.getHandler = function () {
