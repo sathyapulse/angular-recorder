@@ -225,6 +225,7 @@ var RecorderController = function (element, service, recorderUtils, $scope, $tim
         //mobile app needs wav extension to save recording
         cordovaMedia.recorder = new Media(cordovaMedia.url, function () {
           console.log('Media successfully played');
+
         }, function (err) {
           console.log('Media could not be launched' + err.code, err);
         });
@@ -788,6 +789,7 @@ angular.module('angularAudioRecorder.services')
       var html5HandlerConfig = {
         gotStream: function (stream) {
           var audioContext = html5AudioProps.audioContext;
+          audioContext.resume()
           // Create an AudioNode from the stream.
           html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
           html5AudioProps.audioInput.connect((html5AudioProps.inputPoint = audioContext.createGain()));
@@ -823,9 +825,15 @@ angular.module('angularAudioRecorder.services')
           }
         },
         getPermission: function () {
-          navigator.getUserMedia({
-            "audio": true
-          }, html5HandlerConfig.gotStream, html5HandlerConfig.failStream);
+          if(navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(html5HandlerConfig.gotStream)
+                .catch(html5HandlerConfig.failStream);
+          } else {
+            navigator.getUserMedia({
+              "audio": true
+            }, html5HandlerConfig.gotStream, html5HandlerConfig.failStream);
+          }
         },
         init: function () {
           service.isHtml5 = true;
@@ -841,9 +849,11 @@ angular.module('angularAudioRecorder.services')
         }
       };
 
+
       navigator.getUserMedia = navigator.getUserMedia
         || navigator.webkitGetUserMedia
-        || navigator.mozGetUserMedia;
+        || navigator.mozGetUserMedia
+        || (navigator.mediaDevices != undefined) ? navigator.mediaDevices.getUserMedia : undefined;
 
 
       service.isCordova = false;
@@ -880,8 +890,7 @@ angular.module('angularAudioRecorder.services')
           return true;
         }
 
-        return service.isHtml5
-          || swfHandlerConfig.isInstalled();
+        return service.isHtml5 || swfHandlerConfig.isInstalled();
       };
 
       service.getHandler = function () {

@@ -231,7 +231,8 @@ angular.module('angularAudioRecorder.services')
 
       navigator.getUserMedia = navigator.getUserMedia
         || navigator.webkitGetUserMedia
-        || navigator.mozGetUserMedia;
+        || navigator.mozGetUserMedia
+        ||  (navigator.mediaDevices != undefined) ? navigator.mediaDevices.getUserMedia : undefined;
 
 
       service.isCordova = false;
