@@ -225,6 +225,7 @@ var RecorderController = function (element, service, recorderUtils, $scope, $tim
         //mobile app needs wav extension to save recording
         cordovaMedia.recorder = new Media(cordovaMedia.url, function () {
           console.log('Media successfully played');
+
         }, function (err) {
           console.log('Media could not be launched' + err.code, err);
         });
@@ -787,9 +788,7 @@ angular.module('angularAudioRecorder.services')
 
       var html5HandlerConfig = {
         gotStream: function (stream) {
-          console.log(1, stream);
           var audioContext = html5AudioProps.audioContext;
-          console.log(2, audioContext);
           audioContext.resume()
           // Create an AudioNode from the stream.
           html5AudioProps.audioInput = audioContext.createMediaStreamSource(stream);
@@ -821,7 +820,6 @@ angular.module('angularAudioRecorder.services')
 
         },
         failStream: function (data) {
-          console.log(3, data);
           if (angular.isDefined(permissionHandlers.onDenied)) {
             permissionHandlers.onDenied();
           }
